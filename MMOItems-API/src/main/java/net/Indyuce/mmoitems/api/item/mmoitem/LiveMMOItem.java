@@ -35,8 +35,14 @@ public class LiveMMOItem extends ReadMMOItem {
     public LiveMMOItem(NBTItem item) {
         super(item);
 
-        // Reads all the stats that this type could possibly have.
-        for (ItemStat stat : getType().getAvailableStats())
+        /*
+         * Reads all the stats that this item may contain. Only the
+         * stats declared for this item type were loaded before which
+         * caused gem-provided stats to be ignored if the type did not
+         * normally support them. Iterate over all registered stats so
+         * that any stat present on the item NBT is properly loaded.
+         */
+        for (ItemStat stat : MMOItems.plugin.getStats().getAll())
 
             // Attempts to load it
             try {
