@@ -386,7 +386,12 @@ public class MMOItem implements ItemReference {
         // Find restored items
         final List<Pair<GemstoneData, MMOItem>> pairs = new ArrayList<>();
         for (GemstoneData gem : thisSocketsData.getGemstones()) {
-            final MMOItem restored = MMOItems.plugin.getMMOItem(MMOItems.plugin.getTypes().get(gem.getMMOItemType()), gem.getMMOItemID());
+            MMOItem restored;
+            if (gem.getStoredItem() != null) {
+                restored = new LiveMMOItem(GemstoneData.deserializeItem(gem.getStoredItem()));
+            } else {
+                restored = MMOItems.plugin.getMMOItem(MMOItems.plugin.getTypes().get(gem.getMMOItemType()), gem.getMMOItemID());
+            }
             if (restored != null) pairs.add(Pair.of(gem, restored));
         }
 
@@ -415,8 +420,13 @@ public class MMOItem implements ItemReference {
     @Nullable
     public MMOItem extractGemstone(@NotNull GemstoneData gem) {
 
-        final MMOItem restored = MMOItems.plugin.getMMOItem(MMOItems.plugin.getTypes().get(gem.getMMOItemType()), gem.getMMOItemID());
-        if (restored == null) return null;
+        final MMOItem restored;
+        if (gem.getStoredItem() != null) {
+            restored = new LiveMMOItem(GemstoneData.deserializeItem(gem.getStoredItem()));
+        } else {
+            restored = MMOItems.plugin.getMMOItem(MMOItems.plugin.getTypes().get(gem.getMMOItemType()), gem.getMMOItemID());
+            if (restored == null) return null;
+        }
 
         // If RevID updating, no need to identify stats
         if (MMOItemReforger.gemstonesRevIDWhenUnsocket) return restored;

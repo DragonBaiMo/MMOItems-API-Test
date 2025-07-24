@@ -13,6 +13,15 @@ import net.Indyuce.mmoitems.util.MMOUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.io.BukkitObjectInputStream;
+import org.bukkit.util.io.BukkitObjectOutputStream;
+import org.yaml.snakeyaml.external.biz.base64Coder.Base64Coder;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 import java.util.*;
 
 @SuppressWarnings("unused")
@@ -32,6 +41,8 @@ public class GemstoneData {
     private String socketColor;
     @Nullable
     private Integer levelPut;
+    @Nullable
+    private String storedItem;
 
     public GemstoneData cloneGem() {
 
@@ -43,6 +54,7 @@ public class GemstoneData {
         for (ItemStat d : stats.keySet())
             ret.setStat(d, stats.get(d));
         ret.setLevel(getLevel());
+        ret.storedItem = storedItem;
 
         return ret;
     }
@@ -141,11 +153,19 @@ public class GemstoneData {
                 socketColor = null;
             }
 
+            JsonElement stored = object.get("Item");
+            if (stored != null && stored.isJsonPrimitive()) {
+                storedItem = stored.getAsJsonPrimitive().getAsString();
+            } else {
+                storedItem = null;
+            }
+
         } else {
             historicUUID = UUID.randomUUID();
             mmoitemID = null;
             mmoitemType = null;
             socketColor = null;
+            storedItem = null;
         }
     }
 
@@ -185,6 +205,7 @@ public class GemstoneData {
         mmoitemID = gemStoneMMOItem.getId();
         mmoitemType = gemStoneMMOItem.getType().getId();
         socketColor = color;
+        storedItem = serializeItem(gemStoneMMOItem.newBuilder().build());
     }
 
     // TODO improve on this code
@@ -244,6 +265,17 @@ public class GemstoneData {
      */
     public boolean isScaling() {
         return levelPut != null;
+    }
+
+    @Nullable
+    public String getStoredItem() {
+        return storedItem;
+    }
+
+    @Nullable
+    public ItemStack rebuildItem() {
+        if (storedItem == null) return null;
+        return deserializeItem(storedItem);
     }
 
     /**
@@ -341,6 +373,9 @@ public class GemstoneData {
             object.addProperty("Level", levelPut);
         }
         object.addProperty("Color", socketColor);
+        if (storedItem != null) {
+            object.addProperty("Item", storedItem);
+        }
 
 		/*
 		 * These seem obsolete. Abilities, effects, and stats, are merged into the
@@ -363,5 +398,31 @@ public class GemstoneData {
 		*/
 
         return object;
+    }
+
+    @NotNull
+    private static String serializeItem(@NotNull ItemStack item) {
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            BukkitObjectOutputStream data = new BukkitObjectOutputStream(output);
+            data.writeObject(item);
+            data.close();
+            return Base64Coder.encodeLines(output.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @NotNull
+    public static ItemStack deserializeItem(@NotNull String data) {
+        try {
+            ByteArrayInputStream input = new ByteArrayInputStream(Base64Coder.decodeLines(data));
+            BukkitObjectInputStream in = new BukkitObjectInputStream(input);
+            ItemStack stack = (ItemStack) in.readObject();
+            in.close();
+            return stack;
+        } catch (ClassNotFoundException | IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
