@@ -90,5 +90,6 @@ public class MythicMobsCompatibility implements Listener {
 
         // Register new faction damage stats
         MythicMobsLoadHook.registerFactionStats(false);
+        MMOItems.plugin.getStats().reload(false);
     }
 }
