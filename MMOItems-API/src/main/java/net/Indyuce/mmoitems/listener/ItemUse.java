@@ -22,6 +22,9 @@ import net.Indyuce.mmoitems.api.interaction.weapon.Weapon;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.util.MMOUtils;
+
+import javax.tools.Tool;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -223,16 +226,17 @@ public class ItemUse implements Listener {
     // TODO: Rewrite this with a custom 'ApplyMMOItemEvent'?
     @EventHandler
     public void gemStonesAndItemStacks(InventoryClickEvent event) {
+        if (event.getClickedInventory() != null
+                && (event.getClickedInventory().getHolder() instanceof net.Indyuce.inventory.inventory.Inventory || event.getView().getTopInventory().getHolder() instanceof net.Indyuce.inventory.inventory.Inventory)) {
+            event.setCancelled(true);
+            return;
+        }  // 229-233 行是我新加的内容，它没有效果。
+
         final Player player = (Player) event.getWhoClicked();
         if (event.getAction() != InventoryAction.SWAP_WITH_CURSOR) return;
 
         // Prevent processing items from MMOInventory custom backpacks. These
         // inventories require special handling that is not implemented here.
-        if (event.getClickedInventory() != null
-                && event.getClickedInventory().getHolder() instanceof net.Indyuce.inventory.inventory.Inventory) {
-            event.setCancelled(true);
-            return;
-        } // 没有效果，还是会被刻印上物品
 
         final NBTItem item = MythicLib.plugin.getVersion().getWrapper().getNBTItem(event.getCursor());
         final Type type = Type.get(item);
