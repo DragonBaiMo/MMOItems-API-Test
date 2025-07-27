@@ -226,6 +226,14 @@ public class ItemUse implements Listener {
         final Player player = (Player) event.getWhoClicked();
         if (event.getAction() != InventoryAction.SWAP_WITH_CURSOR) return;
 
+        // Prevent processing items from MMOInventory custom backpacks. These
+        // inventories require special handling that is not implemented here.
+        if (event.getClickedInventory() != null
+                && event.getClickedInventory().getHolder() instanceof net.Indyuce.inventory.inventory.Inventory) {
+            event.setCancelled(true);
+            return;
+        }
+
         final NBTItem item = MythicLib.plugin.getVersion().getWrapper().getNBTItem(event.getCursor());
         final Type type = Type.get(item);
         if (type == null) return;
