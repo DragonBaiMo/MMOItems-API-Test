@@ -232,7 +232,7 @@ public class ItemUse implements Listener {
                 && event.getClickedInventory().getHolder() instanceof net.Indyuce.inventory.inventory.Inventory) {
             event.setCancelled(true);
             return;
-        }
+        } // 没有效果，还是会被刻印上物品
 
         final NBTItem item = MythicLib.plugin.getVersion().getWrapper().getNBTItem(event.getCursor());
         final Type type = Type.get(item);
