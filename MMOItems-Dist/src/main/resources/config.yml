@@ -176,6 +176,11 @@ soulbound:
     # Changes apply on server restart.
     can-drop: true
 
+# 当物品带有 AUTO_BIND_ON_USE 属性且未显式设置 SOULBOUND_LEVEL 时，使用该默认等级进行绑定。
+auto-bind:
+    # 自动绑定默认等级（最小为 1）。当物品未配置 SOULBOUND_LEVEL 或其值 <= 0 时生效。
+    default-level: 1
+
 gem-sockets:
 
     # Define the text you need to enter in the

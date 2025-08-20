@@ -15,6 +15,7 @@ import net.Indyuce.mmoitems.api.event.ItemBuildEvent;
 import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
 import net.Indyuce.mmoitems.api.item.template.MMOItemTemplate;
 import net.Indyuce.mmoitems.item.build.BuildMetadata;
+import net.Indyuce.mmoitems.stat.data.BooleanData;
 import net.Indyuce.mmoitems.stat.data.MaterialData;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
 import net.Indyuce.mmoitems.stat.type.Previewable;
@@ -242,6 +243,16 @@ public class ItemStackBuilder {
                 MMOItems.print(Level.SEVERE, "An error occurred while trying to generate item '$f{0}$b' with stat '$f{1}$b': {2}",
                         "ItemStackBuilder", builtMMOItem.getId(), stat.getId(), exception.getMessage());
             }
+
+        // Persist AUTO_BIND_ON_USE even when false (BooleanStat normally writes only when true)
+        try {
+            BooleanData autoBind = (BooleanData) builtMMOItem.getData(ItemStats.AUTO_BIND_ON_USE);
+            if (autoBind != null && !autoBind.isEnabled()) {
+                addItemTag(new ItemTag(ItemStats.AUTO_BIND_ON_USE.getNBTPath(), false));
+            }
+        } catch (ClassCastException ignored) {
+            // If data type mismatches unexpectedly, skip without failing the whole build
+        }
 
         // Display gem stone lore tag
         if (builtMMOItem.getType() == Type.GEM_STONE)

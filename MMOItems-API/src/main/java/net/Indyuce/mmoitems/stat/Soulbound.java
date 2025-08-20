@@ -94,8 +94,8 @@ public class Soulbound extends ItemStat<RandomStatData<SoulboundData>, Soulbound
 		if (tag != null) {
 			try {
 
-				// Parse as Json
-				return new SoulboundData(new JsonParser().parse((String) tag.getValue()).getAsJsonObject());
+                // Parse as Json
+                return new SoulboundData(JsonParser.parseString((String) tag.getValue()).getAsJsonObject());
 
 			} catch (JsonSyntaxException|IllegalStateException exception) {
 				/*
@@ -112,16 +112,31 @@ public class Soulbound extends ItemStat<RandomStatData<SoulboundData>, Soulbound
 
 	@Override
 	public boolean canUse(RPGPlayer player, NBTItem item, boolean message) {
-		if (item.hasTag(ItemStats.SOULBOUND.getNBTPath()) && !item.getString(ItemStats.SOULBOUND.getNBTPath()).contains(player.getPlayer().getUniqueId().toString()) && !player.getPlayer().hasPermission("mmoitems.bypass.soulbound")) {
-			if (message) {
-				int level = new JsonParser().parse(item.getString(ItemStats.SOULBOUND.getNBTPath())).getAsJsonObject().get("Level").getAsInt();
-				Message.SOULBOUND_RESTRICTION.format(ChatColor.RED).send(player.getPlayer());
-				player.getPlayer().playSound(player.getPlayer().getLocation(), Sounds.ENTITY_VILLAGER_NO, 1, 1.5f);
-				player.getPlayer()
-						.damage(MMOItems.plugin.getLanguage().soulboundBaseDamage + level * MMOItems.plugin.getLanguage().soulboundPerLvlDamage);
-			}
-			return false;
-		}
-		return true;
-	}
+        if (item.hasTag(ItemStats.SOULBOUND.getNBTPath()) && !player.getPlayer().hasPermission("mmoitems.bypass.soulbound")) {
+            String raw = item.getString(ItemStats.SOULBOUND.getNBTPath());
+            boolean allowed = false;
+            int level = 0;
+
+            try {
+                // Strict JSON parsing for exact UUID match
+                String storedUUID = JsonParser.parseString(raw).getAsJsonObject().get("UUID").getAsString();
+                level = JsonParser.parseString(raw).getAsJsonObject().get("Level").getAsInt();
+                allowed = player.getPlayer().getUniqueId().toString().equals(storedUUID);
+            } catch (Exception ignored) {
+                // Legacy fallback for old items: contains check
+                allowed = raw != null && raw.contains(player.getPlayer().getUniqueId().toString());
+                try { level = JsonParser.parseString(raw).getAsJsonObject().get("Level").getAsInt(); } catch (Exception ignored2) { /* keep default 0 */ }
+            }
+
+            if (!allowed) {
+                if (message) {
+                    Message.SOULBOUND_RESTRICTION.format(ChatColor.RED).send(player.getPlayer());
+                    player.getPlayer().playSound(player.getPlayer().getLocation(), Sounds.ENTITY_VILLAGER_NO, 1, 1.5f);
+                    player.getPlayer().damage(MMOItems.plugin.getLanguage().soulboundBaseDamage + level * MMOItems.plugin.getLanguage().soulboundPerLvlDamage);
+                }
+                return false;
+            }
+        }
+        return true;
+    }
 }

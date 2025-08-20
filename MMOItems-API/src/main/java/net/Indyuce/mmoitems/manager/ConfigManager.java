@@ -51,6 +51,8 @@ public class ConfigManager implements Reloadable {
     public final List<String> opStats = new ArrayList<>();
     public String itemTypeLoreTag, gemStoneLoreTag, defaultTierName;
     private final Map<Material, Integer> defaultPickaxePower = new HashMap<>();
+    // Auto-bind default level when item does not define SOULBOUND_LEVEL
+    public int autoBindDefaultLevel;
 
     public ConfigManager() {
         mkdir("item");
@@ -178,6 +180,9 @@ public class ConfigManager implements Reloadable {
         defaultTierName = MMOItems.plugin.getConfig().getString("default-tier-name");
         disableConsumableBlockClicks = MMOItems.plugin.getConfig().getBoolean("consumables.disable_clicks_on_blocks");
         itemDurabilityLossCap = MMOItems.plugin.getConfig().getInt("durability.loss_cap");
+
+        // Default soulbound level for AutoBindOnUse
+        autoBindDefaultLevel = MMOItems.plugin.getConfig().getInt("auto-bind.default-level", 1);
 
         commandFlagChecks = MMOItems.plugin.getConfig().getBoolean("enable_flag_checks.commands");
         weaponFlagChecks = MMOItems.plugin.getConfig().getBoolean("enable_flag_checks.weapons");

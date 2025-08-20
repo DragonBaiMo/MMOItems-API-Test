@@ -6,6 +6,8 @@ import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.api.item.ItemTag;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import io.lumine.mythic.lib.api.item.SupportedNBTTagValues;
+import io.lumine.mythic.lib.gson.JsonParser;
+import io.lumine.mythic.lib.gson.JsonSyntaxException;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import io.lumine.mythic.lib.util.annotation.BackwardsCompatibility;
 import io.lumine.mythic.lib.util.lang3.Validate;
@@ -154,7 +156,16 @@ public class MMOUtils {
      */
     public static boolean isSoulboundTo(@NotNull NBTItem item, @NotNull Player player) {
         final @Nullable String foundNbt = item.getString("MMOITEMS_SOULBOUND");
-        return foundNbt != null && foundNbt.contains(player.getUniqueId().toString());
+        if (foundNbt == null) return false;
+
+        // Strict JSON parsing: compare exact UUID from stored JSON
+        try {
+            final String stored = JsonParser.parseString(foundNbt).getAsJsonObject().get("UUID").getAsString();
+            return player.getUniqueId().toString().equals(stored);
+        } catch (JsonSyntaxException | IllegalStateException | NullPointerException ignored) {
+            // Backward compatibility: fallback to legacy 'contains' behavior
+            return foundNbt.contains(player.getUniqueId().toString());
+        }
     }
 
     public static String substringBetween(@NotNull String str, @NotNull String open, @NotNull String close) {
@@ -580,3 +591,6 @@ public class MMOUtils {
         return entities;
     }
 }
+
+
+
