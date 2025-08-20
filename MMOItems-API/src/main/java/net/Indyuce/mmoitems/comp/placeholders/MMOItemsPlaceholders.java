@@ -54,7 +54,7 @@ public class MMOItemsPlaceholders extends PlaceholderExpansion {
         if (identifier.startsWith("type_")) {
             String t = identifier.substring(5, identifier.lastIndexOf("_")).toUpperCase();
             if (!MMOItems.plugin.getTypes().has(t)) return "Invalid type";
-            Type type = Type.get(t);
+            net.Indyuce.mmoitems.api.Type type = MMOItems.plugin.getTypes().get(t);
             String pholder = identifier.substring(6 + t.length()).toLowerCase();
             if ("total".equals(pholder))
                 return "" + MMOItems.plugin.getTemplates().getTemplates(type).size();

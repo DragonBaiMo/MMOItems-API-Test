@@ -129,6 +129,14 @@
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
+
+        <!-- bStats：显式锁定到 3.x，避免解析到被 HTTP 仓库拦截的 1.2 版本 -->
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>3.0.2</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- Adventure API 依赖 -->
         <dependency>
             <groupId>net.kyori</groupId>
@@ -221,7 +229,7 @@
         <dependency>
             <groupId>me.clip</groupId>
             <artifactId>placeholderapi</artifactId>
-            <version>2.9.2</version>
+            <version>2.11.6</version>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>

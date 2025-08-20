@@ -23,6 +23,19 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
+    <!-- 统一依赖版本管理，避免解析到被 HTTP 拦截的旧仓库（如 bstats-bukkit:1.2） -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- 将 bStats 版本固定到可通过 HTTPS 获取的稳定版本 -->
+            <dependency>
+                <groupId>org.bstats</groupId>
+                <artifactId>bstats-bukkit</artifactId>
+                <version>3.0.2</version>
+                <scope>provided</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <!-- Build -->
     <build>
         <plugins>
