@@ -41,6 +41,30 @@ public class MMOInventorySupplier implements InventorySupplier, Listener {
         return new Watcher(resolver);
     }
 
+    // 在 MMOInventory 提交更新前，优先尝试绑定；
+    // 若该物品需要绑定但绑定未达成，尝试取消放入事件（若事件可取消），以达到“未绑定不得放入”。
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void preBindBeforeEquip(InventoryUpdateEvent event) {
+        final ItemStack equipped = event.getNewItem();
+        if (equipped == null) return;
+
+        final Player player = event.getPlayerData().getPlayer();
+        final net.Indyuce.mmoitems.api.player.PlayerData pdata = net.Indyuce.mmoitems.api.player.PlayerData.get(player);
+        // 尝试先行绑定（若失败则不改变物品）
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(pdata, equipped);
+
+        final io.lumine.mythic.lib.api.item.NBTItem nbt = io.lumine.mythic.lib.api.item.NBTItem.get(equipped);
+        if (net.Indyuce.mmoitems.api.Type.get(nbt) == null) return;
+
+        final net.Indyuce.mmoitems.api.item.mmoitem.MMOItem mmo = new net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem(nbt);
+        final boolean needsBind = nbt.getBoolean("MMOITEMS_AUTO_BIND_ON_USE");
+        final boolean isBound = mmo.hasData(net.Indyuce.mmoitems.ItemStats.SOULBOUND);
+
+        if (needsBind && !isBound && event instanceof org.bukkit.event.Cancellable) {
+            ((org.bukkit.event.Cancellable) event).setCancelled(true);
+        }
+    }
+
     private static class Watcher extends InventoryWatcher {
         private final Player player;
 
@@ -55,8 +79,28 @@ public class MMOInventorySupplier implements InventorySupplier, Listener {
         @Nullable
         public ItemUpdate watchAccessory(Inventory inventory, CustomSlot slot, @NotNull Optional<ItemStack> newItem) {
             ItemStack stack = newItem.orElse(playerData.get().get(inventory).getItem(slot));
+            // 当为“事件驱动”的更新（newItem 存在）时，先尝试自动绑定
+            if (newItem.isPresent()) {
+                net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(
+                        net.Indyuce.mmoitems.api.player.PlayerData.get(player),
+                        stack
+                );
+            }
+            // 若物品仍需要绑定但未绑定，则视作不可装备：
+            // - 不进行装备注册（不施加属性/效果）；
+            // - 若槽位原本有已注册物品，按移除处理，避免旧物品效果残留。
+            final io.lumine.mythic.lib.api.item.NBTItem nbt = io.lumine.mythic.lib.api.item.NBTItem.get(stack);
+            boolean blockEquip = false;
+            if (net.Indyuce.mmoitems.api.Type.get(nbt) != null) {
+                final net.Indyuce.mmoitems.api.item.mmoitem.MMOItem mmo = new net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem(nbt);
+                final boolean needsBind = nbt.getBoolean("MMOITEMS_AUTO_BIND_ON_USE");
+                final boolean isBound = mmo.hasData(net.Indyuce.mmoitems.ItemStats.SOULBOUND);
+                blockEquip = needsBind && !isBound;
+            }
             final Pair<Integer, Integer> uniqueMapKey = Pair.of(inventory.getIntegerId(), slot.getIndex());
-            ItemUpdate update = checkForUpdate(stack, equipped.get(uniqueMapKey), EquipmentSlot.ACCESSORY, slot.getIndex(), inventory.getIntegerId());
+            ItemUpdate update = blockEquip
+                    ? checkForUpdate(new org.bukkit.inventory.ItemStack(org.bukkit.Material.AIR), equipped.get(uniqueMapKey), EquipmentSlot.ACCESSORY, slot.getIndex(), inventory.getIntegerId())
+                    : checkForUpdate(stack, equipped.get(uniqueMapKey), EquipmentSlot.ACCESSORY, slot.getIndex(), inventory.getIntegerId());
             if (update != null) equipped.put(uniqueMapKey, update.getNew());
             return update;
         }

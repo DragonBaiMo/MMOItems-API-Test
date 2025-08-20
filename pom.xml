@@ -42,7 +42,7 @@
             This prevents MythicLib from including old versions of previous
             classes when building the same version again
             -->
-            <plugin>
+            <plugin> 
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>

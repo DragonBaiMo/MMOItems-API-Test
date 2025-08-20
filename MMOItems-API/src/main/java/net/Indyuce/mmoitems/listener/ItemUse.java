@@ -14,24 +14,14 @@ import io.lumine.mythic.lib.skill.handler.SkillHandler;
 import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import net.Indyuce.mmoitems.MMOItems;
-import io.lumine.mythic.lib.version.Sounds;
 import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.event.item.SpecialWeaponAttackEvent;
-import net.Indyuce.mmoitems.api.event.item.ApplySoulboundEvent;
 import net.Indyuce.mmoitems.api.event.item.UntargetedWeaponUseEvent;
 import net.Indyuce.mmoitems.api.interaction.*;
 import net.Indyuce.mmoitems.api.interaction.projectile.ArrowParticles;
 import net.Indyuce.mmoitems.api.interaction.weapon.Weapon;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.util.message.Message;
-import net.Indyuce.mmoitems.ItemStats;
-import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
-import net.Indyuce.mmoitems.api.item.mmoitem.LiveMMOItem;
-import net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem;
-import net.Indyuce.mmoitems.stat.data.SoulboundData;
-import net.Indyuce.mmoitems.stat.data.BooleanData;
-import net.Indyuce.mmoitems.stat.type.ItemStat;
-import net.Indyuce.mmoitems.stat.data.type.Mergeable;
 import net.Indyuce.mmoitems.util.MMOUtils;
 
 import org.bukkit.Bukkit;
@@ -127,8 +117,7 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            // 冷却检查通过后，尝试自动绑定
-            tryAutoBindOnUse(playerData, item);
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
 
             if (useItem instanceof Consumable) {
                 event.setUseItemInHand(Event.Result.DENY);
@@ -153,65 +142,6 @@ public class ItemUse implements Listener {
         if (event.hasItem()) return event.getItem();
         if (event.getHand() != null) return event.getPlayer().getInventory().getItem(event.getHand());
         return null;
-    }
-
-    /**
-     * 当物品具有 AUTO_BIND_ON_USE 属性且尚未绑定时，在“使用”发生时自动绑定到玩家。
-     * - 仅处理 MMOItems 物品；
-     * - 跳过成组物品（与消耗品绑定逻辑一致）；
-     * - 触发 ApplySoulboundEvent 以允许外部取消；
-     * - 等级从 SOULBOUND_LEVEL 读取，默认为 1。
-     */
-    private static void tryAutoBindOnUse(@NotNull PlayerData playerData, @NotNull NBTItem item) {
-        // 必须是 MMOItems 物品
-        if (Type.get(item) == null) return;
-
-        // 无该开关或已绑定则跳过
-        if (!item.getBoolean("MMOITEMS_AUTO_BIND_ON_USE")) return;
-
-        final MMOItem mmo = new VolatileMMOItem(item);
-        if (mmo.hasData(ItemStats.SOULBOUND)) return;
-
-        final Player player = playerData.getPlayer();
-
-        // 禁止绑定成组物品（静默返回，不发送提示）
-        if (item.getItem().getAmount() > 1) {
-            return;
-        }
-
-        // 触发事件（可被取消）
-        ApplySoulboundEvent called = new ApplySoulboundEvent(playerData, new VolatileMMOItem(item), item);
-        Bukkit.getPluginManager().callEvent(called);
-        if (called.isCancelled()) return;
-
-        // 计算灵魂绑定等级：优先物品 SOULBOUND_LEVEL，否则回退到全局配置，最终至少为 1
-        int configuredDefault = MMOItems.plugin.getLanguage().autoBindDefaultLevel;
-        int levelFromItem = (int) Math.floor(item.getStat("SOULBOUND_LEVEL"));
-        int level = levelFromItem > 0 ? levelFromItem : Math.max(1, configuredDefault);
-
-        // 写入绑定数据并更新显示
-        MMOItem live = new LiveMMOItem(item);
-        live.setData(ItemStats.SOULBOUND, new SoulboundData(player.getUniqueId(), player.getName(), level));
-        // 绑定成功后将自动绑定标记显式置为 false，避免后续仍为 true
-        live.setData(ItemStats.AUTO_BIND_ON_USE, new BooleanData(false));
-        // 为避免未初始化历史的可合并属性（如附魔）在重构时丢失，这里强制对所有 Mergeable 统计进行一次历史重算
-        for (ItemStat<?, ?> stat : live.getStats()) {
-            if (stat instanceof Mergeable) {
-                // computeStatHistory 会在没有历史时基于当前数据创建历史，然后按升级等规则重算
-                live.setData(stat, live.computeStatHistory(stat).recalculate(live.getUpgradeLevel()));
-            }
-        }
-        item.getItem().setItemMeta(live.newBuilder().build().getItemMeta());
-
-        // 发送可配置的成功绑定消息
-        Message.SUCCESSFULLY_BIND_ITEM
-                .format(ChatColor.YELLOW,
-                        "#item#", MMOUtils.getDisplayName(item.getItem()),
-                        "#level#", MMOUtils.intToRoman(level))
-                .send(player);
-
-        // 反馈（仅保留音效，不发送聊天提示）
-        player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -240,8 +170,7 @@ public class ItemUse implements Listener {
             return;
         }
 
-        // 近战命中前尝试自动绑定
-        tryAutoBindOnUse(playerData, item);
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
 
         // Apply melee attack
         if (!weapon.handleTargetedAttack(event.getAttack(), event.getAttacker(), event.getEntity()))
@@ -265,8 +194,7 @@ public class ItemUse implements Listener {
             return;
         }
 
-        // 工具挖掘触发时尝试自动绑定
-        tryAutoBindOnUse(PlayerData.get(player), item);
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(PlayerData.get(player), item);
 
         if (tool.miningEffects(block)) event.setCancelled(true);
     }
@@ -293,8 +221,7 @@ public class ItemUse implements Listener {
         if (!usableItem.checkItemRequirements(false)) return;
 
         // Apply type-specific entity interactions
-        // 在对实体交互前尝试自动绑定
-        tryAutoBindOnUse(usableItem.getPlayerData(), item);
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(usableItem.getPlayerData(), item);
         final SkillHandler<?> onEntityInteract = usableItem.getMMOItem().getType().onEntityInteract();
         if (onEntityInteract != null) {
             SpecialWeaponAttackEvent called = new SpecialWeaponAttackEvent(usableItem.getPlayerData(), (Weapon) usableItem, target);
@@ -377,8 +304,7 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            // 允许射箭后尝试自动绑定
-            tryAutoBindOnUse(playerData, item);
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
 
             EquipmentSlot bowSlot = EquipmentSlot.fromBukkit(MMOUtils.getHand(event, playerData.getPlayer()));
             final ProjectileMetadata proj = ProjectileMetadata.create(playerData.getMMOPlayerData(), bowSlot, ProjectileType.ARROW, event.getProjectile());
@@ -421,9 +347,8 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            // 冷却检查通过后尝试自动绑定
-            tryAutoBindOnUse(useItem.getPlayerData(), item);
- 
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(useItem.getPlayerData(), item);
+
             org.bukkit.inventory.EquipmentSlot consumeSlot = MMOUtils.getHand(event);
             Consumable.ConsumableConsumeResult result = ((Consumable) useItem).useOnPlayer(consumeSlot, true);
 
@@ -451,6 +376,6 @@ public class ItemUse implements Listener {
         final PlayerData playerData = event.getPlayerData();
         final NBTItem item = weapon.getNBTItem();
         // 无提示，仅尝试绑定
-        tryAutoBindOnUse(playerData, item);
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
     }
 }
