@@ -119,4 +119,19 @@ public class MMOInventorySupplier implements InventorySupplier, Listener {
         ItemStack equipped = event.getNewItem();
         net.Indyuce.mmoitems.api.player.PlayerData.get(event.getPlayerData().getPlayer()).getInventory().watch(Watcher.class, watcher -> watcher.watchAccessory(event.getInventory(), event.getSlot(), optionalOf(equipped)));
     }
+
+    // 在监听链末端（HIGHEST）回写：确保若 LOWEST 阶段完成了绑定和 NBT 更新，则把更新后的物品写回 MMOInventory 的真实存储
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void writeBackAfterBind(InventoryUpdateEvent event) {
+        final ItemStack equipped = event.getNewItem();
+        if (equipped == null) return;
+
+        // 仅处理 MMOItems 物品
+        final io.lumine.mythic.lib.api.item.NBTItem nbt = io.lumine.mythic.lib.api.item.NBTItem.get(equipped);
+        if (net.Indyuce.mmoitems.api.Type.get(nbt) == null) return;
+
+        // 将（可能已被 AutoBindUtil 修改过的）物品回写到 MMOInventory 槽位
+        // 这样当玩家从 MMOInventory 取出物品时，取到的是已持久化绑定状态的版本
+        event.getPlayerData().get(event.getInventory()).setItem(event.getSlot(), equipped);
+    }
 }

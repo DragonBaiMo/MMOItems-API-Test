@@ -118,7 +118,18 @@ public class EquippedItem extends io.lumine.mythic.lib.player.inventory.Equipped
     }
 
     public void setItem(ItemStack item) {
-        throw new RuntimeException("TODO");
+        // 同步底层引用 ItemStack 的关键字段，保持与传入物品一致
+        // 注意：此处仅更新 NBTItem#getItem() 的可变部分，并不负责将物品写回任意外部存储。
+        // 外部存储的持久化需由调用方（如库存供应者）完成。
+        final ItemStack ref = this.item.getItem();
+        if (ref == null || item == null) return;
+
+        // 同步类型与数量
+        ref.setType(item.getType());
+        ref.setAmount(item.getAmount());
+
+        // 同步完整的 ItemMeta（包含所有 NBT 对应的展示、标记等）
+        ref.setItemMeta(item.getItemMeta());
     }
 
     @Override
