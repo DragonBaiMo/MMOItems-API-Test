@@ -38,6 +38,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.logging.Level;
 
 /**
  * Bukkit-MMOItems interface class.
@@ -211,20 +212,37 @@ public class InventoryResolver implements Closeable {
         ///////////////////////////////////////
         for (ItemStat<?, ?> stat : MMOItems.plugin.getStats().getNumericStats()) {
 
-            // TODO MI7 do a full stat lookup and lookup stat by nbtpath
-            double statValue = equippedItem.getItem().getStat(stat.getId());
-            if (statValue == 0) continue;
+            try {
+                // TODO MI7 do a full stat lookup and lookup stat by nbtpath
+                double statValue = equippedItem.getItem().getStat(stat.getId());
+                if (statValue == 0) continue;
 
-            StatInstance statInstance = playerData.getMMOPlayerData().getStatMap().getInstance(stat.getId());
-            final ModifierSource modifierSource = equippedItem.getModifierSource();
+                StatInstance statInstance = playerData.getMMOPlayerData().getStatMap().getInstance(stat.getId());
+                final ModifierSource modifierSource = equippedItem.getModifierSource();
 
-            // Apply hand weapon stat offset
-            if (modifierSource.isWeapon() && stat instanceof WeaponBaseStat)
-                statValue = fixWeaponBase(statInstance, stat, statValue);
+                // Apply hand weapon stat offset
+                if (modifierSource.isWeapon() && stat instanceof WeaponBaseStat)
+                    statValue = fixWeaponBase(statInstance, stat, statValue);
 
-            StatModifier modifier = new StatModifier(MODIFIER_KEY, stat.getId(), statValue, ModifierType.FLAT, equippedItem.getEquipmentSlot(), modifierSource);
-            statInstance.registerModifier(modifier);
-            equippedItem.getModifierCache().add(modifier);
+                StatModifier modifier = new StatModifier(MODIFIER_KEY, stat.getId(), statValue, ModifierType.FLAT, equippedItem.getEquipmentSlot(), modifierSource);
+                statInstance.registerModifier(modifier);
+                equippedItem.getModifierCache().add(modifier);
+
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                // 记录越界异常并跳过该属性，避免影响整体解析
+                MMOItems.plugin.getLogger().log(Level.SEVERE,
+                        "应用数值属性时出现越界异常，已跳过该属性。stat=" + stat.getId()
+                                + ", slot=" + equippedItem.getEquipmentSlot()
+                                + ", source=" + equippedItem.getModifierSource()
+                                + ", item=" + equippedItem,
+                        ex);
+            } catch (Throwable t) {
+                // 兜底保护，防止单个属性异常中断流程
+                MMOItems.plugin.getLogger().log(Level.SEVERE,
+                        "应用数值属性时出现异常，已跳过该属性。stat=" + stat.getId()
+                                + ", item=" + equippedItem,
+                        t);
+            }
         }
     }
 
