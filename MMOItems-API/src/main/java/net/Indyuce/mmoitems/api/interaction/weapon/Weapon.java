@@ -187,6 +187,9 @@ public class Weapon extends UseItem {
         Bukkit.getPluginManager().callEvent(called);
         if (called.isCancelled()) return WeaponAttackResult.BUKKIT_EVENT;
 
+        // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, getNBTItem(), actionHand.toBukkit());
+
         // Attack is ready to be performed.
         // Apply weapon costs
         final double attackDelay = 1 / requireNonZero(meta.getCaster().getStat("ATTACK_SPEED"), MMOItems.plugin.getConfig().getDouble("default.attack-speed"));

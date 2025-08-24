@@ -117,7 +117,8 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
+            // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item, event.getHand());
 
             if (useItem instanceof Consumable) {
                 event.setUseItemInHand(Event.Result.DENY);
@@ -170,7 +171,8 @@ public class ItemUse implements Listener {
             return;
         }
 
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
+        // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item, ((MeleeAttackMetadata) event.getAttack()).getHand().toBukkit());
 
         // Apply melee attack
         if (!weapon.handleTargetedAttack(event.getAttack(), event.getAttacker(), event.getEntity()))
@@ -194,7 +196,8 @@ public class ItemUse implements Listener {
             return;
         }
 
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(PlayerData.get(player), item);
+        // 先尝试自动绑定（仅在绑定成功时由工具方法写回主手）
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(PlayerData.get(player), item, org.bukkit.inventory.EquipmentSlot.HAND);
 
         if (tool.miningEffects(block)) event.setCancelled(true);
     }
@@ -221,7 +224,8 @@ public class ItemUse implements Listener {
         if (!usableItem.checkItemRequirements(false)) return;
 
         // Apply type-specific entity interactions
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(usableItem.getPlayerData(), item);
+        // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(usableItem.getPlayerData(), item, event.getHand());
         final SkillHandler<?> onEntityInteract = usableItem.getMMOItem().getType().onEntityInteract();
         if (onEntityInteract != null) {
             SpecialWeaponAttackEvent called = new SpecialWeaponAttackEvent(usableItem.getPlayerData(), (Weapon) usableItem, target);
@@ -304,9 +308,9 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
-
             EquipmentSlot bowSlot = EquipmentSlot.fromBukkit(MMOUtils.getHand(event, playerData.getPlayer()));
+            // 先尝试自动绑定（仅在绑定成功时由工具方法写回弓所在槽位）
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item, bowSlot.toBukkit());
             final ProjectileMetadata proj = ProjectileMetadata.create(playerData.getMMOPlayerData(), bowSlot, ProjectileType.ARROW, event.getProjectile());
             proj.setSourceItem(item);
             proj.setCustomDamage(true);
@@ -347,9 +351,10 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(useItem.getPlayerData(), item);
-
+            // 先尝试自动绑定（仅在绑定成功时由工具方法写回消耗所在手槽）
             org.bukkit.inventory.EquipmentSlot consumeSlot = MMOUtils.getHand(event);
+            net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(useItem.getPlayerData(), item, consumeSlot);
+
             Consumable.ConsumableConsumeResult result = ((Consumable) useItem).useOnPlayer(consumeSlot, true);
 
             // No effects are applied and not consumed

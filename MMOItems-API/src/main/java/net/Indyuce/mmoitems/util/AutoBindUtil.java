@@ -19,6 +19,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.EquipmentSlot;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,10 +31,26 @@ public final class AutoBindUtil {
 
     public static boolean applyAutoBindIfNeeded(@NotNull PlayerData playerData, @Nullable ItemStack stack) {
         if (stack == null) return false;
-        return applyAutoBindIfNeeded(playerData, NBTItem.get(stack));
+        return applyAutoBindIfNeeded(playerData, NBTItem.get(stack), null);
+    }
+
+    /**
+     * 新增：支持传入需要更新的 Bukkit 槽位，仅在实际发生绑定时写回对应槽位，减少无效 setItem 调用。
+     */
+    public static boolean applyAutoBindIfNeeded(@NotNull PlayerData playerData, @Nullable ItemStack stack, @Nullable EquipmentSlot slotToUpdate) {
+        if (stack == null) return false;
+        return applyAutoBindIfNeeded(playerData, NBTItem.get(stack), slotToUpdate);
     }
 
     public static boolean applyAutoBindIfNeeded(@NotNull PlayerData playerData, @NotNull NBTItem item) {
+        return applyAutoBindIfNeeded(playerData, item, null);
+    }
+
+    /**
+     * 新增：带槽位的绑定方法。
+     * 当且仅当发生绑定成功时，尝试将更新后的物品写回指定槽位（当前仅支持主手/副手）。
+     */
+    public static boolean applyAutoBindIfNeeded(@NotNull PlayerData playerData, @NotNull NBTItem item, @Nullable EquipmentSlot slotToUpdate) {
         // 必须是 MMOItems 物品
         if (Type.get(item) == null) return false;
 
@@ -69,6 +86,19 @@ public final class AutoBindUtil {
             }
         }
         item.getItem().setItemMeta(live.newBuilder().build().getItemMeta());
+
+        // 槽位写回：仅在绑定成功后进行，且仅对主手/副手写回
+        if (slotToUpdate != null) {
+            try {
+                if (slotToUpdate == EquipmentSlot.HAND) {
+                    player.getInventory().setItemInMainHand(item.getItem());
+                } else if (slotToUpdate == EquipmentSlot.OFF_HAND) {
+                    player.getInventory().setItemInOffHand(item.getItem());
+                }
+            } catch (Throwable ignored) {
+                // 兼容性保护：不因写回失败影响绑定流程
+            }
+        }
 
         // 提示与音效（遵循原实现）
         net.Indyuce.mmoitems.api.util.message.Message.SUCCESSFULLY_BIND_ITEM
