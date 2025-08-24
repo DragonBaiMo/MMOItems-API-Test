@@ -20,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static net.Indyuce.mmoitems.inventory.InventoryWatcher.optionalOf;
@@ -130,8 +132,37 @@ public class MMOInventorySupplier implements InventorySupplier, Listener {
         final io.lumine.mythic.lib.api.item.NBTItem nbt = io.lumine.mythic.lib.api.item.NBTItem.get(equipped);
         if (net.Indyuce.mmoitems.api.Type.get(nbt) == null) return;
 
-        // 将（可能已被 AutoBindUtil 修改过的）物品回写到 MMOInventory 槽位
-        // 这样当玩家从 MMOInventory 取出物品时，取到的是已持久化绑定状态的版本
-        event.getPlayerData().get(event.getInventory()).setItem(event.getSlot(), equipped);
+        // 生成重入键：playerUUID:inventoryId:slotIndex
+        final java.util.UUID playerId = event.getPlayerData().getPlayer().getUniqueId();
+        final int invId = event.getInventory().getIntegerId();
+        final int slotIdx = event.getSlot().getIndex();
+        final String guardKey = playerId + ":" + invId + ":" + slotIdx;
+
+        // 若已在本事件链中处理过，则跳过以避免递归
+        if (!REENTRANCY_GUARD.add(guardKey)) return;
+        try {
+            // 仅当存储中的物品与事件中的不一致时回写
+            final ItemStack stored = event.getPlayerData().get(event.getInventory()).getItem(event.getSlot());
+            if (!areItemsSame(stored, equipped)) {
+                event.getPlayerData().get(event.getInventory()).setItem(event.getSlot(), equipped);
+            }
+        } finally {
+            REENTRANCY_GUARD.remove(guardKey);
+        }
+    }
+
+    // 防止在 HIGHEST 阶段通过 setItem 回写时再次触发 InventoryUpdateEvent 而递归
+    private static final Set<String> REENTRANCY_GUARD =
+            java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    // 判等：避免不必要的回写触发二次事件
+    private static boolean areItemsSame(org.bukkit.inventory.ItemStack a, org.bukkit.inventory.ItemStack b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (a.getType() != b.getType()) return false;
+        // 数量变化也需要回写
+        if (a.getAmount() != b.getAmount()) return false;
+        // isSimilar 比较类型与元数据（含大部分可见/可比的 NBT 表现）
+        return a.isSimilar(b);
     }
 }
