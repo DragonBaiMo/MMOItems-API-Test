@@ -17,6 +17,7 @@ import net.Indyuce.mmoitems.api.interaction.util.InteractItem;
 import net.Indyuce.mmoitems.api.interaction.weapon.Weapon;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.util.DeathDowngrading;
+import net.Indyuce.mmoitems.inventory.LoginRefreshSession;
 import net.Indyuce.mmoitems.stat.data.PotionEffectData;
 import net.Indyuce.mmoitems.util.MMOUtils;
 import org.bukkit.Material;
@@ -115,6 +116,7 @@ public class PlayerListener implements Listener {
                     return;
                 }
 
+                LoginRefreshSession.open(playerData, reason);
                 playerData.resolveInventory();
                 success++;
                 MMOItems.plugin.getLogger().log(Level.FINE,
@@ -129,6 +131,7 @@ public class PlayerListener implements Listener {
             private void cancelAndCleanup() {
                 cancel();
                 PENDING_LOGIN_REFRESH.remove(uniqueId);
+                LoginRefreshSession.close(playerData, "进服属性刷新任务结束");
             }
         }.runTaskTimer(MMOItems.plugin, LOGIN_REFRESH_DELAY, LOGIN_REFRESH_INTERVAL);
 
@@ -158,6 +161,10 @@ public class PlayerListener implements Listener {
             task.cancel();
             MMOItems.plugin.getLogger().log(Level.FINER,
                     "调试: 玩家 " + event.getPlayer().getName() + " 退出，已清理进服属性刷新任务。");
+        }
+        final PlayerData playerData = PlayerData.getOrNull(event.getPlayer());
+        if (playerData != null) {
+            LoginRefreshSession.close(playerData, "玩家退出服务器");
         }
     }
 
