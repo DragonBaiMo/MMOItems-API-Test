@@ -9,6 +9,7 @@ import io.lumine.mythic.lib.api.stat.modifier.StatModifier;
 import io.lumine.mythic.lib.player.modifier.ModifierSource;
 import io.lumine.mythic.lib.player.modifier.ModifierSupplier;
 import io.lumine.mythic.lib.player.modifier.ModifierType;
+import io.lumine.mythic.lib.player.modifier.PlayerModifier;
 import io.lumine.mythic.lib.player.modifier.SimpleModifierSupplier;
 import io.lumine.mythic.lib.player.particle.ParticleEffect;
 import io.lumine.mythic.lib.player.permission.PermissionModifier;
@@ -36,6 +37,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.logging.Level;
@@ -125,9 +127,56 @@ public class InventoryResolver implements Closeable {
     }
 
     public void resolveInventory() {
+        final LoginRefreshSession session = LoginRefreshSession.get(playerData);
+        if (session != null) {
+            session.beginCycle();
+            for (InventoryWatcher watcher : watchers) {
+                final LoginRefreshSession.Phase phase = LoginRefreshSession.Phase.resolve(watcher);
+                final Consumer<ItemUpdate> consumer = session.wrapConsumer(phase);
+                watcher.watchAll(consumer);
+                session.markPhaseReady(phase);
+            }
+            session.tryCommit(this);
+            return;
+        }
+
         playerData.getMMOPlayerData().getStatMap().bufferUpdates(() -> {
             for (InventoryWatcher watcher : watchers) watcher.watchAll(this::processUpdate);
         });
+    }
+
+    int unapplyAllItemModifiers() {
+        int removed = 0;
+
+        for (EquippedItem equippedItem : activeItems) {
+            if (!equippedItem.getModifierCache().isEmpty()) {
+                for (PlayerModifier modifier : new ArrayList<>(equippedItem.getModifierCache())) {
+                    modifier.unregister(playerData.getMMOPlayerData());
+                    removed++;
+                }
+                equippedItem.getModifierCache().clear();
+            }
+            equippedItem.applied = false;
+        }
+
+        if (!setModifierSupplier.getModifierCache().isEmpty()) {
+            for (PlayerModifier modifier : new ArrayList<>(setModifierSupplier.getModifierCache())) {
+                modifier.unregister(playerData.getMMOPlayerData());
+                removed++;
+            }
+            setModifierSupplier.getModifierCache().clear();
+        }
+
+        itemSetCount.clear();
+        return removed;
+    }
+
+    int countActiveModifiers() {
+        int total = setModifierSupplier.getModifierCache().size();
+        for (EquippedItem equippedItem : activeItems) {
+            total += equippedItem.getModifierCache().size();
+        }
+        return total;
     }
 
     private void registerItem(@NotNull EquippedItem equippedItem) {
