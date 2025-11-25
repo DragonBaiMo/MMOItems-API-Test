@@ -80,12 +80,6 @@ public class AuraSkillsHook implements RPGHandler, Listener {
         user.addTraitModifier(
                 new TraitModifier(MODIFIER_KEY_PREFIX + "max_mana", Traits.MAX_MANA, data.getStat(ItemStats.MAX_MANA)));
 
-        double currentMaxMana = user.getMaxMana();
-
-        if (user.getMana() > currentMaxMana) {
-            user.setMana(currentMaxMana);
-        }
-
         statExtra.forEach((stat, miStat) -> aSkills.getUser(data.getPlayer().getUniqueId()).addStatModifier(new StatModifier(MODIFIER_KEY_PREFIX + stat.name(), stat, data.getStat(miStat))));
     }
 

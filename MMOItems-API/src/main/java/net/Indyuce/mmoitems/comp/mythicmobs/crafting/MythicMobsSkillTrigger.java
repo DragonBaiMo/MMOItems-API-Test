@@ -2,13 +2,14 @@ package net.Indyuce.mmoitems.comp.mythicmobs.crafting;
 
 import io.lumine.mythic.api.skills.Skill;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import io.lumine.mythic.core.utils.MythicUtil;
 import io.lumine.mythic.lib.api.MMOLineConfig;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.api.crafting.trigger.Trigger;
 import net.Indyuce.mmoitems.api.player.PlayerData;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.entity.Entity;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,8 +29,11 @@ public class MythicMobsSkillTrigger extends Trigger {
     @Override
     public void whenCrafting(PlayerData data) {
         if (!data.isOnline()) return;
-        List<Entity> targets = new ArrayList<>();
-        targets.add(data.getPlayer());
-        MythicBukkit.inst().getAPIHelper().castSkill(data.getPlayer(), this.skill.getInternalName(), data.getPlayer(), data.getPlayer().getEyeLocation(), targets, null, 1);
+
+        var targetedEntity = MythicUtil.getTargetedEntity(data.getPlayer());
+        List<Entity> targets = targetedEntity == null ? Collections.emptyList() : Collections.singletonList(targetedEntity);
+        var origin = data.getPlayer().getLocation();
+
+        MythicBukkit.inst().getAPIHelper().castSkill(data.getPlayer(), this.skill.getInternalName(), data.getPlayer(), origin, targets, null, 1);
     }
 }

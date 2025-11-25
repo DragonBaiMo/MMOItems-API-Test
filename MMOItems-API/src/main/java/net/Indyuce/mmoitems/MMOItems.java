@@ -216,8 +216,12 @@ public class MMOItems extends MMOPlugin {
          * loading the config since it checks for a config option
          */
         Bukkit.getScheduler().runTaskTimer(this, () -> {
-            for (Player player : Bukkit.getOnlinePlayers())
-                PlayerData.get(player).resolveInventory();
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                final PlayerData playerData = PlayerData.getOrNull(player);
+                if (playerData != null) {
+                    playerData.resolveInventory();
+                }
+            }
         }, 100, getConfig().getInt("inventory-update-delay"));
 
         PluginUtils.isDependencyPresent("mcMMO", unused -> Bukkit.getPluginManager().registerEvents(new McMMONonRPGHook(), this));

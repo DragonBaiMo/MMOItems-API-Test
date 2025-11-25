@@ -142,7 +142,10 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        scheduleLoginRefresh(PlayerData.get(event.getPlayer()), "玩家加入服务器");
+        final PlayerData playerData = PlayerData.getOrNull(event.getPlayer());
+        if (playerData != null) {
+            scheduleLoginRefresh(playerData, "玩家加入服务器");
+        }
     }
 
     @EventHandler
@@ -205,7 +208,8 @@ public class PlayerListener implements Listener {
         if (event.getNewArmorPiece() == null)
             return;
 
-        if (!PlayerData.get(event.getPlayer()).getRPG().canUse(NBTItem.get(event.getNewArmorPiece()), true))
+        final PlayerData playerData = PlayerData.getOrNull(event.getPlayer());
+        if (playerData != null && !playerData.getRPG().canUse(NBTItem.get(event.getNewArmorPiece()), true))
             event.setCancelled(true);
     }
 
@@ -228,7 +232,8 @@ public class PlayerListener implements Listener {
 
         final NBTItem nbtItem = MythicLib.plugin.getVersion().getWrapper().getNBTItem(item.getItem());
         final Type type = Type.get(nbtItem.getType());
-        final PlayerData playerData = PlayerData.get((Player) event.getEntity().getShooter());
+        final PlayerData playerData = PlayerData.getOrNull((Player) event.getEntity().getShooter());
+        if (playerData == null) return;
 
         if (type != null) {
             final Weapon weapon = new Weapon(playerData, nbtItem);

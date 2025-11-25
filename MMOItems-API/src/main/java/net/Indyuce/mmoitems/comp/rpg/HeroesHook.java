@@ -30,8 +30,11 @@ import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,9 +42,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class HeroesHook implements RPGHandler, Listener, AttackHandler {
     private final Map<SkillType, DamageType> damages = new HashMap<>();
+    private final Map<UUID, Integer> lastMaxMana = new HashMap<>();
+    private final Map<UUID, Integer> lastMaxStamina = new HashMap<>();
 
     public static final ItemStat MAX_STAMINA = new DoubleStat("MAX_STAMINA", Material.EMERALD, "Max Stamina", new String[]{"Adds stamina to your max stamina bar"}), REQUIRED_SECONDARY_HERO_LEVEL = new RequiredSecondaryLevel();
 
@@ -81,11 +87,27 @@ public class HeroesHook implements RPGHandler, Listener, AttackHandler {
 
     @Override
     public void refreshStats(PlayerData data) {
+        final UUID uuid = data.getUniqueId();
+        Integer lastStamina = lastMaxStamina.get(uuid);
+        Integer lastMana = lastMaxMana.get(uuid);
+        if (lastStamina == null || lastMana == null) {
+            return;
+        }
+
         Hero hero = Heroes.getInstance().getCharacterManager().getHero(data.getPlayer());
-        hero.removeMaxMana("MMOItems");
-        hero.addMaxMana("MMOItems", (int) data.getStat(ItemStats.MAX_MANA));
-        hero.removeMaxStamina("MMOItems");
-        hero.addMaxStamina("MMOItems", (int) data.getStat(MAX_STAMINA));
+
+        final int currentMana = (int) data.getStat(ItemStats.MAX_MANA);
+        if (currentMana != lastMana) {
+            lastMaxMana.put(uuid, currentMana);
+            hero.removeMaxMana("MMOItems");
+            hero.addMaxMana("MMOItems", currentMana);
+        }
+        final int currentStamina = (int) data.getStat(MAX_STAMINA);
+        if (currentStamina != lastStamina) {
+            lastMaxStamina.put(uuid, currentStamina);
+            hero.removeMaxStamina("MMOItems");
+            hero.addMaxStamina("MMOItems", currentStamina);
+        }
 
         // Backwards compatibility. Max health is operated by MythicLib
         hero.removeMaxHealth("MMOItems");
@@ -94,6 +116,20 @@ public class HeroesHook implements RPGHandler, Listener, AttackHandler {
     @Override
     public RPGPlayer getInfo(PlayerData data) {
         return new PlayerWrapper(data);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onJoin(PlayerJoinEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        lastMaxStamina.put(uuid, 0);
+        lastMaxMana.put(uuid, 0);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        lastMaxStamina.remove(uuid);
+        lastMaxMana.remove(uuid);
     }
 
     /**

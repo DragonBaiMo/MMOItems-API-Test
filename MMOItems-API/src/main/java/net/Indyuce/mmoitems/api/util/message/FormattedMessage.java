@@ -1,10 +1,8 @@
 package net.Indyuce.mmoitems.api.util.message;
 
 import io.lumine.mythic.lib.MythicLib;
-import net.Indyuce.mmocore.api.player.PlayerActivity;
-import net.Indyuce.mmocore.api.player.PlayerData;
+import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import net.Indyuce.mmoitems.MMOItems;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -62,14 +60,10 @@ public class FormattedMessage {
         // Finally apply color
         message = MythicLib.plugin.parseColors(message);
 
-        // Send to action bar
-        if (actionBar) {
-            if (Bukkit.getPluginManager().isPluginEnabled("MMOCore"))
-                PlayerData.get(player).setLastActivity(PlayerActivity.ACTION_BAR_MESSAGE);
-            MythicLib.plugin.getVersion().getWrapper().sendActionBar(player, message);
-        }
+        // 发送动作栏提示，使用 MythicLib 的 ActionBar 队列避免覆盖
+        if (actionBar) MMOPlayerData.get(player).getActionBar().show(message);
 
-        // Send to chat
+        // 发送聊天消息
         else player.sendMessage(message);
     }
 

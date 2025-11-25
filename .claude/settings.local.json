@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//i/CustomBuild/Other/mythiclib-2025-7-20-持续更新/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -90,7 +90,7 @@ public final class LoginRefreshSession {
 
     private LoginRefreshSession(@NotNull PlayerData playerData, @NotNull String triggerReason) {
         this.playerData = playerData;
-        this.playerName = playerData.getPlayer() == null ? playerData.getMMOPlayerData().getName() : playerData.getPlayer().getName();
+        this.playerName = playerData.getPlayer() != null ? playerData.getPlayer().getName() : playerData.getMMOPlayerData().getUniqueId().toString();
         this.lastTrigger = triggerReason;
         this.createdAt = System.currentTimeMillis();
         this.lastWaitLogAt = this.createdAt;

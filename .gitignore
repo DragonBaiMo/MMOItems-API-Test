@@ -13,6 +13,7 @@ MMOItems-API.eml
 MMOItems-API.iml
 MMOItems-Dist.eml
 MMOItems-Dist.iml
+MMOItems-Paper.iml
 
 .flattened-pom.xml
 dependency-reduced-pom.xml
