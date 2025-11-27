@@ -8,6 +8,7 @@ import io.lumine.mythic.lib.api.util.AltChar;
 import io.lumine.mythic.lib.gson.*;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import io.lumine.mythic.lib.util.annotation.BackwardsCompatibility;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.item.build.ItemStackBuilder;
 import net.Indyuce.mmoitems.api.item.mmoitem.ReadMMOItem;
@@ -21,7 +22,6 @@ import net.Indyuce.mmoitems.stat.data.AbilityListData;
 import net.Indyuce.mmoitems.stat.data.random.RandomAbilityData;
 import net.Indyuce.mmoitems.stat.data.random.RandomAbilityListData;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -87,7 +87,9 @@ public class Abilities extends ItemStat<RandomAbilityListData, AbilityListData> 
     public void whenApplied(@NotNull ItemStackBuilder item, @NotNull AbilityListData data) {
         final List<String> abilityLore = new ArrayList<>();
 
-        data.getAbilities().forEach(ability -> {
+        for (var ability : data.getAbilities()) {
+            if (ability.hidesFromLore()) continue;
+
             final StringBuilder builder = new StringBuilder(generalFormat
                     .replace("{trigger}", MMOItems.plugin.getLanguage().getTriggerTypeName(ability.getTrigger()))
                     .replace("{ability}", ability.getAbility().getName()));
@@ -113,10 +115,8 @@ public class Abilities extends ItemStat<RandomAbilityListData, AbilityListData> 
             }
 
             abilityLore.add(builder.toString());
-
-            if (useAbilitySplitter)
-                abilityLore.add(abilitySplitter);
-        });
+            if (useAbilitySplitter) abilityLore.add(abilitySplitter);
+        }
 
         if (useAbilitySplitter && !abilityLore.isEmpty())
             abilityLore.remove(abilityLore.size() - 1);

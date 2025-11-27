@@ -3,8 +3,7 @@ package net.Indyuce.mmoitems.gui.edition;
 import io.lumine.mythic.lib.api.util.AltChar;
 import io.lumine.mythic.lib.api.util.ui.FriendlyFeedbackProvider;
 import io.lumine.mythic.lib.gui.Navigator;
-import io.lumine.mythic.lib.version.VInventoryView;
-import io.lumine.mythic.lib.version.VersionUtils;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.ConfigFile;
 import net.Indyuce.mmoitems.api.item.template.MMOItemTemplate;
@@ -15,22 +14,18 @@ import net.Indyuce.mmoitems.gui.MMOItemsInventory;
 import net.Indyuce.mmoitems.stat.data.random.RandomStatData;
 import net.Indyuce.mmoitems.stat.data.type.StatData;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
-import io.lumine.mythic.lib.util.lang3.Validate;
+import net.Indyuce.mmoitems.util.MMOUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public abstract class EditionInventory extends MMOItemsInventory {
 
@@ -57,13 +52,12 @@ public abstract class EditionInventory extends MMOItemsInventory {
      * base item data
      *
      * @deprecated Not being used atm, the item editor only lets the user
-     * edit the base item data.
+     *         edit the base item data.
      */
     @Deprecated
     private ModifierNode editedModifier = null;
 
     private ItemStack cachedItem;
-    private int previousPage;
 
     public EditionInventory(@NotNull Navigator navigator, @NotNull MMOItemTemplate template) {
         this(navigator, template, true);
@@ -80,58 +74,52 @@ public abstract class EditionInventory extends MMOItemsInventory {
 
         // For building the Inventory
         this.template = template;
-        this.configFile = template.getType().getConfigFile(); // Update config file
-        final VInventoryView open = VersionUtils.getOpen(player);
-        if (open.getTopInventory().getHolder() instanceof EditionInventory)
-            this.cachedItem = ((EditionInventory) open.getTopInventory().getHolder()).cachedItem;
+        configFile = template.getType().getConfigFile(); // Update config file
+        //TODO look into navigator stack for cached item
     }
 
+    @NotNull
     @Override
     public Inventory getInventory() {
-        return inventory;
+        return Objects.requireNonNull(this.inventory);
     }
 
     public abstract void arrangeInventory();
 
-    /**
-     * Refreshes the inventory but does not open it again for the player.
-     * Has the same clientside effect as {@link #open()} but does not
-     * create & open the inventory again.
-     */
+    @Deprecated
     public void refreshInventory() {
-        Validate.notNull(inventory, "Inventory has never been opened");
-
-        configFile = template.getType().getConfigFile(); // Update config file
-        inventory.clear();
-        // updateCachedItem();
-        addEditionItems();
-        arrangeInventory();
+        open();
     }
 
-    /**
-     * Updates and open up the inventory to the player.
-     */
+    @Deprecated
     public void open(@Nullable EditionInventory previousInventory) {
-        previousPage = previousInventory == null ? 0 : previousInventory.previousPage;
         open();
     }
 
     @Deprecated
     public void open(int previousPage) {
-        this.previousPage = previousPage;
         open();
     }
 
-    /**
-     * Updates and open up the inventory to the player.
-     */
     @Override
-    public void open() {
-        if (inventory == null) inventory = Bukkit.createInventory(this, 54, getName());
+    public void onOpen() {
+
+        // Optimization: reuse previous inventory if available
+        if (inventory != null) {
+            getNavigator().recycle = true;
+            inventory.clear();
+        } else inventory = Bukkit.createInventory(this, 54, getName());
+
         configFile = template.getType().getConfigFile(); // Update config file
+        template = MMOItems.plugin.getTemplates().getTemplate(template.getType(), template.getId());
         addEditionItems();
         arrangeInventory();
-        super.open();
+    }
+
+    @Override
+    public void onClose() {
+        inventory = null;
+        cachedItem = null;
     }
 
     public abstract String getName();
@@ -142,9 +130,9 @@ public abstract class EditionInventory extends MMOItemsInventory {
 
     /**
      * @return The currently edited configuration section. It depends on if the
-     * player is editing the base item data or editing a modifier. This
-     * config section contains item data (either the 'base' config
-     * section or the 'stats' section for modifiers).
+     *         player is editing the base item data or editing a modifier. This
+     *         config section contains item data (either the 'base' config
+     *         section or the 'stats' section for modifiers).
      */
     public ConfigurationSection getEditedSection() {
         ConfigurationSection config = configFile.getConfig().getConfigurationSection(template.getId());
@@ -173,21 +161,8 @@ public abstract class EditionInventory extends MMOItemsInventory {
 
     public void registerTemplateEdition() {
         configFile.registerTemplateEdition(template);
-
-        /*
-         * After the edition was registered, update the
-         * cached itemStack before opening the menu again
-         *
-         * Some more optimization could be done here by only recalculating the
-         * item in the GUI that corresponds to the stat that was edited but it's
-         * pretty much useless since the heaviest step is to regenerate the item
-         */
-        template = MMOItems.plugin.getTemplates().getTemplate(template.getType(), template.getId());
-        //editedModifier = editedModifier != null ? template.getModifier(editedModifier.getId()) : null;
-
-        updateCachedItem();
-        refreshInventory();
-        //open();
+        cachedItem = null;
+        open();
     }
 
     /**
@@ -199,17 +174,14 @@ public abstract class EditionInventory extends MMOItemsInventory {
     }
 
     public ItemStack getCachedItem() {
-        if (cachedItem != null)
-            return cachedItem;
-
-        updateCachedItem();
+        if (cachedItem == null) updateCachedItem();
         return cachedItem;
     }
 
     public void addEditionItems() {
         ItemStack get = new ItemStack(Material.CHEST);
         ItemMeta getMeta = get.getItemMeta();
-        getMeta.addItemFlags(ItemFlag.values());
+        MMOUtils.fixAttributeLore(getMeta);
         getMeta.setDisplayName(ChatColor.GREEN + AltChar.fourEdgedClub + " Get the Item! " + AltChar.fourEdgedClub);
         List<String> getLore = new ArrayList<>();
         getLore.add(ChatColor.GRAY + "");
@@ -231,10 +203,6 @@ public abstract class EditionInventory extends MMOItemsInventory {
 
         inventory.setItem(2, get);
         inventory.setItem(4, getCachedItem());
-    }
-
-    public int getPreviousPage() {
-        return previousPage;
     }
 
     @NotNull

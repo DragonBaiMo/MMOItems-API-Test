@@ -180,14 +180,14 @@ public class RecipeListGUI extends EditionInventory {
 
                 // Retreat page
                 page--;
-                refreshInventory();
+                open();
 
             // Next Page
             } else if (event.getSlot() == 36) {
 
                 // Advance page
                 page++;
-                refreshInventory();
+                open();
 
             // Create a new recipe
             } else if (event.getSlot() == createSlot) {

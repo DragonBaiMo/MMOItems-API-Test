@@ -112,7 +112,7 @@ public class MMOInventorySupplier implements InventorySupplier, Listener {
             for (Inventory inv : MMOInventory.plugin.getInventoryManager().getAll())
                 for (CustomSlot slot : inv.getSlots())
                     if (slot.getType().isCustom())
-                        callbackIfNotNull(watchAccessory(inv, slot, Optional.empty()), callback);
+                        callIfNotNull(watchAccessory(inv, slot, Optional.empty()), callback);
         }
     }
 

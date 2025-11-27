@@ -33,7 +33,7 @@ public class RBA_InputOutput extends RecipeButtonAction {
     @Override
     public boolean runPrimary() {
         getInv().switchInput();
-        getInv().refreshInventory();
+        getInv().open();
         clickSFX();
         return true;
     }

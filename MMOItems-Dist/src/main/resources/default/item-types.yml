@@ -1,12 +1,12 @@
 
-# Default item types. These cannot be removed. They
-# may be used as 'parents' to create new item types
-# which will behave just like another item type. Parents
-# generate their own config file at /language/item_type.yml
 
-# Every item type has its template for unidentified items.
-# If you don't specify one like the default SWORD item type,
-# it will use the default (not translated) english one.
+##########################################################
+# Default item types
+#
+# These cannot be removed. They may be used as "parents"
+# to create new item types which will behave just like
+# another item type
+##########################################################
 
 # Used as reference when using /mmoitems commands
 SWORD:
@@ -16,15 +16,28 @@ SWORD:
     # workbench. You can use durability for custom textures.
     # In 1.14, durability is replaced by CustomModelData.
     display: IRON_SWORD:0
-    
+
     # Name displayed in the item lore.
     name: 'Sword'
 
     # Should this type be displayed inside the item browser?
     hide-in-game: false
-    
+
     # Template of an unidentified item.
     unident-item:
+
+        #item: DIAMOND_SWORD                  # You can override the item type here if you want
+        #custom_model_data_float: 0.45        # 1.20.4+ Float custom model data. Either this, or string option above works completely fine
+        #custom_model_data: 0                 # 1.14-1.20.3 Custom model data. Prefer using custom_model_data_string on 1.20.4+
+        #tooltip: 'myplugin:tooltip_asset_id' # You can edit the slot icon tooltip that way
+        #custom_model_data_string: 'test'     # 1.20.4+ string custom model data
+        #item_model: 'minecraft:dirt'         # 1.21.2+ item model
+        #skull_texture: '......'              # SKull texture value or URL
+        #hide_tooltip: false                  # True or false, for vanilla tooltip
+        #unbreakable: false                   # Is it unbreakable or not?
+        #fake_attribute: false                # Should MythicLib add a fake attribute modifier? Useful for 1.20 or lower to hide vanilla attributes from the item
+        #item_flags: [HIDE_ENCHANTS, ....]    # Add item flags to your items. https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/inventory/ItemFlag.html
+
         name: '&f#prefix#Unidentified Sword'
         lore:
         - '&7This item is unidentified. I must'
@@ -166,7 +179,7 @@ CROSSBOW:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     disable-melee-attacks: true
     on-right-click: crossbow_attack
 
@@ -182,7 +195,7 @@ MUSKET:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     disable-melee-attacks: true
     # Lutes and muskets attack effects are hardcoded as
     # of MI 6.10 and cannot be modified at the moment.
@@ -199,7 +212,7 @@ LUTE:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     disable-melee-attacks: true
     # Lutes and muskets attack effects are hardcoded as
     # of MI 6.10 and cannot be modified at the moment.
@@ -363,7 +376,10 @@ BLOCK:
             - '{range}&8- &7Lvl Range: &e#range#'
             - '{tier}&8- &7Item Tier: #prefix##tier#'
 
-# Default subtypes
+##########################################################
+# Default sub-item types
+##########################################################
+
 GREATSWORD:
     display: DIAMOND_SWORD
     name: 'Greatsword'
@@ -377,7 +393,7 @@ GREATSWORD:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: slashing_attack_effect
 
 LONG_SWORD:
@@ -393,7 +409,7 @@ LONG_SWORD:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: slashing_attack_effect
 
 KATANA:
@@ -409,7 +425,7 @@ KATANA:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: slashing_attack_effect
 
 THRUSTING_SWORD:
@@ -425,9 +441,9 @@ THRUSTING_SWORD:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: piercing_attack_effect
-    
+
 AXE:
     display: STONE_AXE
     name: 'Axe'
@@ -441,9 +457,9 @@ AXE:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: slashing_attack_effect
-    
+
 GREATAXE:
     display: DIAMOND_AXE
     name: 'Greataxe'
@@ -457,9 +473,9 @@ GREATAXE:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: slashing_attack_effect
-    
+
 HALBERD:
     display: IRON_AXE
     name: 'Halberd'
@@ -473,9 +489,9 @@ HALBERD:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: blunt_attack_effect
-    
+
 LANCE:
     display: STICK
     name: 'Lance'
@@ -489,9 +505,9 @@ LANCE:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: piercing_attack_effect
-    
+
 GREATHAMMER:
     display: DIAMOND_AXE
     name: 'Greathammer'
@@ -505,9 +521,9 @@ GREATHAMMER:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: blunt_attack_effect
-    
+
 GREATSTAFF:
     display: DIAMOND_HOE
     name: 'Greatstaff'
@@ -521,9 +537,9 @@ GREATSTAFF:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: blunt_attack_effect
-    
+
 STAVE:
     display: IRON_HOE
     name: 'Stave'
@@ -537,9 +553,9 @@ STAVE:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     on-attack: blunt_attack_effect
-    
+
 TOME:
     display: BOOK
     name: 'Tome'
@@ -553,7 +569,7 @@ TOME:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
 TALISMAN:
     display: TOTEM_OF_UNDYING
     name: 'Talisman'
@@ -567,7 +583,7 @@ TALISMAN:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
- 
+
 WAND:
     display: STICK
     name: 'Wand'
@@ -600,9 +616,9 @@ GREATBOW:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
     disable-melee-attacks: true
-    
+
 SHIELD:
     display: SHIELD
     name: 'Shield'
@@ -616,7 +632,7 @@ SHIELD:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
-    
+
 MATERIAL:
     display: PAPER
     name: 'Material'
@@ -630,3 +646,73 @@ MATERIAL:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
+
+##########################################################
+# MMOInventory types
+##########################################################
+
+RING:
+    display: EMERALD
+    name: 'Ring'
+    parent: 'ACCESSORY'
+    unident-item:
+        name: '&f#prefix#Unidentified Ring'
+        lore:
+            - '&7This item is unidentified. I must'
+            - '&7find a way to identify it!'
+            - '{tier}'
+            - '{tier}&8Item Info:'
+            - '{range}&8- &7Lvl Range: &e#range#'
+            - '{tier}&8- &7Item Tier: #prefix##tier#'
+AMULET:
+    display: EMERALD
+    name: 'Amulet'
+    parent: 'ACCESSORY'
+    unident-item:
+        name: '&f#prefix#Unidentified Amulet'
+        lore:
+            - '&7This item is unidentified. I must'
+            - '&7find a way to identify it!'
+            - '{tier}'
+            - '{tier}&8Item Info:'
+            - '{range}&8- &7Lvl Range: &e#range#'
+            - '{tier}&8- &7Item Tier: #prefix##tier#'
+BRACELET:
+    display: EMERALD
+    name: 'Bracelet'
+    parent: 'ACCESSORY'
+    unident-item:
+        name: '&f#prefix#Unidentified Bracelet'
+        lore:
+            - '&7This item is unidentified. I must'
+            - '&7find a way to identify it!'
+            - '{tier}'
+            - '{tier}&8Item Info:'
+            - '{range}&8- &7Lvl Range: &e#range#'
+            - '{tier}&8- &7Item Tier: #prefix##tier#'
+GLOVES:
+    display: EMERALD
+    name: 'Gloves'
+    parent: 'ACCESSORY'
+    unident-item:
+        name: '&f#prefix#Unidentified Gloves'
+        lore:
+            - '&7This item is unidentified. I must'
+            - '&7find a way to identify it!'
+            - '{tier}'
+            - '{tier}&8Item Info:'
+            - '{range}&8- &7Lvl Range: &e#range#'
+            - '{tier}&8- &7Item Tier: #prefix##tier#'
+ARTIFACT:
+    display: EMERALD
+    name: 'Artifact'
+    parent: 'ACCESSORY'
+    unident-item:
+        name: '&f#prefix#Unidentified Artifact'
+        lore:
+            - '&7This item is unidentified. I must'
+            - '&7find a way to identify it!'
+            - '{tier}'
+            - '{tier}&8Item Info:'
+            - '{range}&8- &7Lvl Range: &e#range#'
+            - '{tier}&8- &7Item Tier: #prefix##tier#'

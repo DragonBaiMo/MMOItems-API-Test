@@ -4,11 +4,11 @@ import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import io.lumine.mythic.lib.damage.AttackMetadata;
 import io.lumine.mythic.lib.data.SynchronizedDataHolder;
+import io.lumine.mythic.lib.data.SaveReason;
 import io.lumine.mythic.lib.player.PlayerMetadata;
 import io.lumine.mythic.lib.player.permission.PermissionModifier;
 import io.lumine.mythic.lib.player.potion.PermanentPotionEffect;
 import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
-import io.lumine.mythic.lib.util.Closeable;
 import io.lumine.mythic.lib.version.VPotionEffectType;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.crafting.CraftingStatus;
@@ -31,12 +31,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class PlayerData extends SynchronizedDataHolder implements Closeable {
+public class PlayerData extends SynchronizedDataHolder {
     // Reloaded everytime the player reconnects in case of major change.
     private RPGPlayer rpgPlayer;
 
     private final InventoryResolver inventoryResolver = new InventoryResolver(this);
-    private final CraftingStatus craftingStatus = new CraftingStatus();
+    private final CraftingStatus craftingStatus = new CraftingStatus(this);
 
     public PlayerData(@NotNull MMOPlayerData mmoData) {
         super(MMOItems.plugin, mmoData);
@@ -45,8 +45,24 @@ public class PlayerData extends SynchronizedDataHolder implements Closeable {
     }
 
     @Override
-    public void close() {
-        inventoryResolver.close();
+    public void onSessionReady() {
+        super.onSessionReady();
+
+        // 修复 MythicLib/MMOCore 档案加载事件触发时的装备解析缺失问题
+        inventoryResolver.initialize();
+        inventoryResolver.resolveInventory();
+    }
+
+    @Override
+    public void onSaved(@NotNull SaveReason reason) {
+        super.onSaved(reason);
+
+        if (reason == SaveReason.AUTOSAVE) {
+            return;
+        }
+
+        // 切换档案时清理当前档案的物品增益
+        getMMOPlayerData().getStatMap().bufferUpdates(inventoryResolver::onClose);
     }
 
     public boolean isOnline() {
@@ -79,14 +95,10 @@ public class PlayerData extends SynchronizedDataHolder implements Closeable {
      */
     public void resolveInventory() {
 
-        // Cannot update inventory unless online and fully sync
-        if (!isOnline() || !getMMOPlayerData().hasFullySynchronized()) return;
+        // 会话未就绪时不进行物品解析
+        if (!getMMOPlayerData().isPlaying()) return;
 
         inventoryResolver.resolveInventory();
-
-        // Update stats from external plugins
-        // TODO improve?
-        MMOItems.plugin.getRPGs().forEach(rpg -> rpg.refreshStats(this));
     }
 
     public void timedRunnable() {
@@ -137,30 +149,6 @@ public class PlayerData extends SynchronizedDataHolder implements Closeable {
         }
     }
 
-    /**
-     * @see #getOrNull(OfflinePlayer)
-     * @deprecated
-     */
-    @Deprecated
-    public static boolean has(Player player) {
-        return has(player.getUniqueId());
-    }
-
-    /**
-     * Used to check if the UUID is associated to a real player
-     * or a Citizens/Sentinel NPC. Citizens NPCs do not have
-     * a player data associated to them so it's an easy O(1) way
-     * to check instead of checking for an entity metadta.
-     *
-     * @return If player data is loaded for a player UUID
-     * @deprecated
-     * @see #getOrNull(OfflinePlayer)
-     */
-    @Deprecated
-    public static boolean has(UUID uuid) {
-        return MMOItems.plugin.getPlayerDataManager().isLoaded(uuid);
-    }
-
     @NotNull
     public static PlayerData get(UUID uuid) {
         return MMOItems.plugin.getPlayerDataManager().get(uuid);
@@ -190,6 +178,27 @@ public class PlayerData extends SynchronizedDataHolder implements Closeable {
     }
 
     //region Deprecated
+
+    /**
+     * @see #getOrNull(OfflinePlayer)
+     * @deprecated
+     */
+    @Deprecated
+    public static boolean has(Player player) {
+        return has(player.getUniqueId());
+    }
+
+    /**
+     * 用于判定 UUID 是否为真实玩家（排除 NPC）。
+     *
+     * @return 是否已加载对应的玩家数据
+     * @see #getOrNull(OfflinePlayer)
+     * @deprecated
+     */
+    @Deprecated
+    public static boolean has(UUID uuid) {
+        return MMOItems.plugin.getPlayerDataManager().isLoaded(uuid);
+    }
 
     @Deprecated
     public PlayerStats getStats() {

@@ -15,7 +15,6 @@ import io.lumine.mythic.lib.player.particle.ParticleEffect;
 import io.lumine.mythic.lib.player.permission.PermissionModifier;
 import io.lumine.mythic.lib.player.potion.PermanentPotionEffect;
 import io.lumine.mythic.lib.player.skill.PassiveSkill;
-import io.lumine.mythic.lib.util.Closeable;
 import io.lumine.mythic.lib.util.annotation.BackwardsCompatibility;
 import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.ItemStats;
@@ -54,9 +53,9 @@ import java.util.logging.Level;
  *
  * @author jules
  */
-public class InventoryResolver implements Closeable {
+public class InventoryResolver {
     private final PlayerData playerData;
-    private final List<InventoryWatcher> watchers;
+    private final List<InventoryWatcher> watchers = new ArrayList<>();
 
     /**
      * Item registry
@@ -75,17 +74,28 @@ public class InventoryResolver implements Closeable {
 
     public InventoryResolver(PlayerData playerData) {
         this.playerData = playerData;
-        this.watchers = MMOItems.plugin.getInventory().getWatchers(this);
 
         // TODO reset all item modifiers on join? extra safety
     }
 
-    @Override
-    public void close() {
-        // Empty all registered modifiers from items and item set
-        for (EquippedItem equipped : activeItems)
-            equipped.getModifierCache().forEach(mod -> mod.unregister(playerData.getMMOPlayerData()));
-        setModifierSupplier.getModifierCache().forEach(mod -> mod.unregister(playerData.getMMOPlayerData()));
+    public void initialize() {
+        this.watchers.addAll(MMOItems.plugin.getInventory().getWatchers(this));
+    }
+
+    public void onClose() {
+
+        // 禁用 watcher，避免会话结束后的异步回调
+        watchers.clear();
+
+        // 清理已应用的物品增益
+        playerData.getMMOPlayerData().getStatMap().bufferUpdates(() -> {
+            for (var equipped : activeItems) if (equipped.applied) unapplyModifiers(equipped);
+        });
+        activeItems.clear();
+
+        // 清理套装增益
+        itemSetCount.clear();
+        resetItemSetModifiers();
     }
 
     @NotNull
@@ -97,18 +107,18 @@ public class InventoryResolver implements Closeable {
 
     public void watchVanillaSlot(@NotNull EquipmentSlot slot, Optional<ItemStack> newItem) {
         for (InventoryWatcher watcher : watchers)
-            InventoryWatcher.callbackIfNotNull(watcher.watchVanillaSlot(slot, newItem), this::processUpdate);
+            InventoryWatcher.callIfNotNull(watcher.watchVanillaSlot(slot, newItem), this::processUpdate);
     }
 
     public void watchInventory(int slotIndex, Optional<ItemStack> newItem) {
         for (InventoryWatcher watcher : watchers)
-            InventoryWatcher.callbackIfNotNull(watcher.watchInventory(slotIndex, newItem), this::processUpdate);
+            InventoryWatcher.callIfNotNull(watcher.watchInventory(slotIndex, newItem), this::processUpdate);
     }
 
     public <T extends InventoryWatcher> void watch(Class<T> instanceOf, Function<T, ItemUpdate> action) {
         for (InventoryWatcher watcher : watchers)
             if (instanceOf.isInstance(watcher))
-                InventoryWatcher.callbackIfNotNull(action.apply(instanceOf.cast(watcher)), this::processUpdate);
+                InventoryWatcher.callIfNotNull(action.apply(instanceOf.cast(watcher)), this::processUpdate);
     }
 
     public void processUpdate(@NotNull ItemUpdate recorded) {
@@ -216,6 +226,10 @@ public class InventoryResolver implements Closeable {
         else if (!valid && equippedItem.applied) unapplyModifiers(equippedItem);
     }
 
+    public void clearItemModifiers(@NotNull EquippedItem equippedItem) {
+        if (equippedItem.applied) unapplyModifiers(equippedItem);
+    }
+
     private void applyModifiers(@NotNull EquippedItem equippedItem) {
         Validate.isTrue(!equippedItem.applied, "Item modifiers already applied");
         equippedItem.applied = true;
@@ -245,7 +259,7 @@ public class InventoryResolver implements Closeable {
         ///////////////////////////////////////
         // Permissions (not using Vault)
         ///////////////////////////////////////
-        if (item.hasData(ItemStats.GRANTED_PERMISSIONS))
+        if (MMOItems.plugin.getLanguage().itemGrantedPermissions && item.hasData(ItemStats.GRANTED_PERMISSIONS))
             registerPermissions(equippedItem, ((StringListData) item.getData(ItemStats.GRANTED_PERMISSIONS)).getList());
 
         ///////////////////////////////////////
@@ -349,12 +363,16 @@ public class InventoryResolver implements Closeable {
         }
     }
 
+    private void resetItemSetModifiers() {
+        setModifierSupplier.getModifierCache().forEach(mod -> mod.unregister(playerData.getMMOPlayerData()));
+        setModifierSupplier.getModifierCache().clear();
+    }
+
     // TODO make it not fully reset everything like a retard everytime
     private void resolveItemSet() {
 
-        // Clear all modifiers due to item set
-        setModifierSupplier.getModifierCache().forEach(mod -> mod.unregister(playerData.getMMOPlayerData()));
-        setModifierSupplier.getModifierCache().clear();
+        // 清理套装增益
+        resetItemSetModifiers();
 
         // Reset and compute item set bonuses
         ItemSet.SetBonuses setBonuses = null;

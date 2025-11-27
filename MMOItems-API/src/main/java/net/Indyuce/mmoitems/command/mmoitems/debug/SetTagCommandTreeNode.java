@@ -2,22 +2,24 @@ package net.Indyuce.mmoitems.command.mmoitems.debug;
 
 import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.api.item.ItemTag;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class SetTagCommandTreeNode extends CommandTreeNode {
 	public SetTagCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "settag");
 
-		addParameter(new Parameter("<path>", (explorer, list) -> list.add("TagPath")));
-		addParameter(new Parameter("<value>", (explorer, list) -> list.add("TagValue")));
+		addArgument(new Argument<>("path", (explorer, list) -> list.add("TagPath")));
+		addArgument(new Argument<>("value", (explorer, list) -> list.add("TagValue")));
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length < 4)
 			return CommandResult.THROW_USAGE;
 

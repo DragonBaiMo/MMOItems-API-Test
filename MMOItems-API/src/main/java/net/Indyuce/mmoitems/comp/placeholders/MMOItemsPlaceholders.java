@@ -9,7 +9,6 @@ import io.lumine.mythic.lib.manager.StatManager;
 import io.lumine.mythic.lib.util.DefenseFormula;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import net.Indyuce.mmoitems.MMOItems;
-import net.Indyuce.mmoitems.api.Type;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -54,7 +53,7 @@ public class MMOItemsPlaceholders extends PlaceholderExpansion {
         if (identifier.startsWith("type_")) {
             String t = identifier.substring(5, identifier.lastIndexOf("_")).toUpperCase();
             if (!MMOItems.plugin.getTypes().has(t)) return "Invalid type";
-            net.Indyuce.mmoitems.api.Type type = MMOItems.plugin.getTypes().get(t);
+            var type = net.Indyuce.mmoitems.api.Type.get(t);
             String pholder = identifier.substring(6 + t.length()).toLowerCase();
             if ("total".equals(pholder))
                 return "" + MMOItems.plugin.getTemplates().getTemplates(type).size();

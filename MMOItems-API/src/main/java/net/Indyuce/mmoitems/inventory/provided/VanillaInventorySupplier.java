@@ -39,12 +39,12 @@ public class VanillaInventorySupplier implements InventorySupplier, Listener {
 
         @Override
         public void watchAll(@NotNull Consumer<ItemUpdate> callback) {
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.HEAD, Optional.empty()), callback);
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.CHEST, Optional.empty()), callback);
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.LEGS, Optional.empty()), callback);
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.FEET, Optional.empty()), callback);
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.MAIN_HAND, Optional.empty()), callback);
-            callbackIfNotNull(watchVanillaSlot(EquipmentSlot.OFF_HAND, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.HEAD, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.CHEST, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.LEGS, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.FEET, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.MAIN_HAND, Optional.empty()), callback);
+            callIfNotNull(watchVanillaSlot(EquipmentSlot.OFF_HAND, Optional.empty()), callback);
         }
 
         @Override

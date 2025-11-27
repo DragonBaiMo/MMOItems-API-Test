@@ -4,7 +4,8 @@ import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import io.lumine.mythic.lib.api.util.ui.FriendlyFeedbackMessage;
 import io.lumine.mythic.lib.api.util.ui.FriendlyFeedbackProvider;
-import io.lumine.mythic.lib.util.MMOPlugin;
+import io.lumine.mythic.lib.data.SynchronizedDataManager;
+import io.lumine.mythic.lib.module.MMOPlugin;
 import io.lumine.mythic.lib.util.lang3.Validate;
 import io.lumine.mythic.lib.version.SpigotPlugin;
 import net.Indyuce.mmoitems.api.DeathItemsHandler;
@@ -40,6 +41,7 @@ import net.Indyuce.mmoitems.inventory.provided.OrnamentInventorySupplier;
 import net.Indyuce.mmoitems.inventory.provided.VanillaInventorySupplier;
 import net.Indyuce.mmoitems.manager.*;
 import net.Indyuce.mmoitems.manager.data.PlayerDataManager;
+import net.Indyuce.mmoitems.manager.data.YAMLDatabaseImpl;
 import net.Indyuce.mmoitems.server.ServerAdapter;
 import net.Indyuce.mmoitems.server.SpigotServerAdapter;
 import net.Indyuce.mmoitems.util.PluginUtils;
@@ -152,6 +154,8 @@ public class MMOItems extends MMOPlugin {
         typeManager.postload();
 
         skillManager.initialize(false);
+
+        playerDataManager.setupDatabase(new YAMLDatabaseImpl());
 
         final int configVersion = getConfig().contains("config-version", true) ? getConfig().getInt("config-version") : -1;
         final int defConfigVersion = getConfig().getDefaults().getInt("config-version");
@@ -406,6 +410,12 @@ public class MMOItems extends MMOPlugin {
     }
 
     public PlayerDataManager getPlayerDataManager() {
+        return playerDataManager;
+    }
+
+    @Override
+    @NotNull
+    public SynchronizedDataManager<?, ?> getRawPlayerDataManager() {
         return playerDataManager;
     }
 

@@ -1,29 +1,30 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
-import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.ConfigFile;
 import net.Indyuce.mmoitems.api.Type;
-import net.Indyuce.mmoitems.command.MMOItemsCommandTreeRoot;
+import net.Indyuce.mmoitems.command.Arguments;
 import net.Indyuce.mmoitems.gui.edition.ItemEdition;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class CopyCommandTreeNode extends CommandTreeNode {
 	public CopyCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "copy");
 
-		addParameter(MMOItemsCommandTreeRoot.TYPE);
-		addParameter(MMOItemsCommandTreeRoot.ID_2);
-		addParameter(new Parameter("<new-id>", (a, b) -> {
+		addArgument(Arguments.ITEM_TYPE);
+		addArgument(Arguments.ITEM_ID_2);
+		addArgument(new Argument<>("new-id", (a, b) -> {
 		}));
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length < 4)
 			return CommandResult.THROW_USAGE;
 

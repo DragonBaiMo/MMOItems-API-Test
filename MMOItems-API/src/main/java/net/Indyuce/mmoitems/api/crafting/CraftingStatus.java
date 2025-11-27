@@ -1,12 +1,12 @@
 package net.Indyuce.mmoitems.api.crafting;
 
 import io.lumine.mythic.lib.util.annotation.BackwardsCompatibility;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.crafting.CraftingStatus.CraftingQueue.QueueItem;
 import net.Indyuce.mmoitems.api.crafting.recipe.CraftingRecipe;
 import net.Indyuce.mmoitems.api.crafting.recipe.Recipe;
 import net.Indyuce.mmoitems.api.player.PlayerData;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 public class CraftingStatus {
+    private final PlayerData playerData;
 
     /**
      * Saves data about items being constructed in specific stations. players
@@ -22,68 +23,8 @@ public class CraftingStatus {
      */
     private final Map<CraftingStation, CraftingQueue> queues = new HashMap<>();
 
-    public void load(PlayerData data, ConfigurationSection config) {
-        String name = data.isOnline() ? data.getPlayer().getName() : "Unknown Player";
-
-        for (String stationId : config.getKeys(false)) {
-            if (!MMOItems.plugin.getCrafting().hasStation(stationId)) {
-                MMOItems.plugin.getLogger().log(Level.SEVERE,
-                        "An error occurred while trying to load crafting station recipe data of '" + name + "': "
-                                + "could not find crafting station with ID '" + stationId
-                                + "', make sure you backup that player data file before the user logs off.");
-                continue;
-            }
-
-            CraftingStation station = MMOItems.plugin.getCrafting().getStation(stationId);
-            CraftingQueue queue = new CraftingQueue(station);
-            queues.put(station, queue);
-
-            @BackwardsCompatibility(version = "6.10") final Optional<String> legacyOpt = config.getConfigurationSection(stationId).getKeys(false).stream().findFirst();
-            final boolean legacyLoading = legacyOpt.isPresent() && config.contains(stationId + "." + legacyOpt.get() + ".delay");
-
-            for (String recipeConfigId : config.getConfigurationSection(stationId).getKeys(false)) {
-                String recipeId = config.getString(stationId + "." + recipeConfigId + ".recipe");
-                if (recipeId == null || !station.hasRecipe(recipeId)) {
-                    MMOItems.plugin.getLogger().log(Level.SEVERE,
-                            "An error occurred while trying to load crafting station recipe data of '" + name + "': "
-                                    + "could not find recipe with ID '" + recipeId
-                                    + "', make sure you backup that player data file before the user logs off.");
-                    continue;
-                }
-
-                Recipe recipe = station.getRecipe(recipeId);
-                if (!(recipe instanceof CraftingRecipe)) {
-                    MMOItems.plugin.getLogger().log(Level.SEVERE, "An error occurred while trying to load crafting station recipe data of '"
-                            + name + "': " + "recipe '" + recipe.getId() + "' is not a CRAFTING recipe.");
-                    continue;
-                }
-
-                // Backwards compatibility config loading for MI <6.10
-                if (legacyLoading) {
-                    final long started = config.getLong(stationId + "." + recipeConfigId + ".started");
-                    final long delay = config.getLong(stationId + "." + recipeConfigId + ".delay");
-
-                    queue.add((CraftingRecipe) recipe,
-                            started,
-                            started + delay);
-                    continue;
-                }
-
-                queue.add((CraftingRecipe) recipe,
-                        config.getLong(stationId + "." + recipeConfigId + ".start"),
-                        config.getLong(stationId + "." + recipeConfigId + ".completion"));
-            }
-        }
-    }
-
-    public void save(ConfigurationSection config) {
-        queues.forEach((station, queue) -> {
-            for (QueueItem craft : queue.getCrafts()) {
-                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".recipe", craft.getRecipe().getId());
-                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".start", craft.start);
-                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".completion", craft.completion);
-            }
-        });
+    public CraftingStatus(PlayerData playerData) {
+        this.playerData = playerData;
     }
 
     public CraftingQueue getQueue(@NotNull CraftingStation station) {
@@ -202,4 +143,68 @@ public class CraftingStatus {
             }
         }
     }
+
+    //region YAML
+
+    public void loadFromYaml(ConfigurationSection config) {
+        String playerName = playerData.getMMOPlayerData().getPlayerName();
+
+        for (String stationId : config.getKeys(false)) {
+            if (!MMOItems.plugin.getCrafting().hasStation(stationId)) {
+                MMOItems.plugin.getLogger().log(Level.SEVERE,
+                        "An error occurred while trying to load crafting station recipe data of '" + playerName + "': "
+                                + "could not find crafting station with ID '" + stationId
+                                + "', make sure you backup that player data file before the user logs off.");
+                continue;
+            }
+
+            CraftingStation station = MMOItems.plugin.getCrafting().getStation(stationId);
+            CraftingQueue queue = new CraftingQueue(station);
+            queues.put(station, queue);
+
+            @BackwardsCompatibility(version = "6.10") final Optional<String> legacyOpt = config.getConfigurationSection(stationId).getKeys(false).stream().findFirst();
+            final boolean legacyLoading = legacyOpt.isPresent() && config.contains(stationId + "." + legacyOpt.get() + ".delay");
+
+            for (String recipeConfigId : config.getConfigurationSection(stationId).getKeys(false)) {
+                String recipeId = config.getString(stationId + "." + recipeConfigId + ".recipe");
+                if (recipeId == null || !station.hasRecipe(recipeId)) {
+                    MMOItems.plugin.getLogger().log(Level.SEVERE,
+                            "An error occurred while trying to load crafting station recipe data of '" + playerName + "': "
+                                    + "could not find recipe with ID '" + recipeId
+                                    + "', make sure you backup that player data file before the user logs off.");
+                    continue;
+                }
+
+                Recipe recipe = station.getRecipe(recipeId);
+                if (!(recipe instanceof CraftingRecipe)) {
+                    MMOItems.plugin.getLogger().log(Level.SEVERE, "An error occurred while trying to load crafting station recipe data of '"
+                            + playerName + "': " + "recipe '" + recipe.getId() + "' is not a CRAFTING recipe.");
+                    continue;
+                }
+
+                if (legacyLoading) {
+                    final long started = config.getLong(stationId + "." + recipeConfigId + ".started");
+                    final long delay = config.getLong(stationId + "." + recipeConfigId + ".delay");
+                    queue.add((CraftingRecipe) recipe, started, started + delay);
+                    continue;
+                }
+
+                queue.add((CraftingRecipe) recipe,
+                        config.getLong(stationId + "." + recipeConfigId + ".start"),
+                        config.getLong(stationId + "." + recipeConfigId + ".completion"));
+            }
+        }
+    }
+
+    public void saveToYaml(ConfigurationSection config) {
+        queues.forEach((station, queue) -> {
+            for (QueueItem craft : queue.getCrafts()) {
+                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".recipe", craft.getRecipe().getId());
+                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".start", craft.start);
+                config.set(station.getId() + ".recipe-" + craft.getUniqueId().toString() + ".completion", craft.completion);
+            }
+        });
+    }
+
+    //endregion
 }

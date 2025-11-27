@@ -1,34 +1,33 @@
 package net.Indyuce.mmoitems.manager.data;
 
+import io.lumine.mythic.lib.data.DataLoadResult;
 import io.lumine.mythic.lib.data.DefaultOfflineDataHolder;
-import io.lumine.mythic.lib.data.yaml.YAMLSynchronizedDataHandler;
+import io.lumine.mythic.lib.data.yaml.YAMLFlatDatabase;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.UUID;
 
-public class YAMLDataHandler extends YAMLSynchronizedDataHandler<PlayerData, DefaultOfflineDataHolder> {
-    public YAMLDataHandler(JavaPlugin plugin) {
-        super(plugin);
+public class YAMLDatabaseImpl extends YAMLFlatDatabase<PlayerData, DefaultOfflineDataHolder> {
+    public YAMLDatabaseImpl() {
+        super(MMOItems.plugin);
     }
 
     @Override
     public void saveInSection(PlayerData playerData, ConfigurationSection config) {
         //config.set("permissions-from-items", new ArrayList<>(playerData.getInventory().getPermissions()));
         config.createSection("crafting-queue");
-        playerData.getCrafting().save(config.getConfigurationSection("crafting-queue"));
+        playerData.getCrafting().saveToYaml(config.getConfigurationSection("crafting-queue"));
     }
 
     @Override
-    public void loadFromSection(PlayerData playerData, ConfigurationSection config) {
+    protected @NotNull DataLoadResult loadFromSection(@NotNull PlayerData playerData, @NotNull ConfigurationSection config, boolean isSaved) {
 
         if (config.contains("crafting-queue"))
-            playerData.getCrafting().load(playerData, config.getConfigurationSection("crafting-queue"));
+            playerData.getCrafting().loadFromYaml(config.getConfigurationSection("crafting-queue"));
 
         if (MMOItems.plugin.hasPermissions() && config.contains("permissions-from-items")) {
             final Permission perms = MMOItems.plugin.getVault().getPermissions();
@@ -36,6 +35,8 @@ public class YAMLDataHandler extends YAMLSynchronizedDataHandler<PlayerData, Def
                 if (perms.has(playerData.getPlayer(), perm)) perms.playerRemove(playerData.getPlayer(), perm);
             });
         }
+
+        return new DataLoadResult(DataLoadResult.Type.SUCCESS, false, isSaved);
     }
 
     @Override

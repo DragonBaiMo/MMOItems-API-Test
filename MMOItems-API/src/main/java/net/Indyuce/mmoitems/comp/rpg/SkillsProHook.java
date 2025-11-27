@@ -19,10 +19,6 @@ public class SkillsProHook implements RPGHandler, Listener {
     }
 
     @Override
-    public void refreshStats(PlayerData data) {
-    }
-
-    @Override
     public RPGPlayer getInfo(PlayerData data) {
         return new SkillsPlayer(data);
     }

@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Previously, only one Player Inventory was allowed.
@@ -69,6 +70,6 @@ public class PlayerInventoryManager {
      */
     @NotNull
     public List<InventoryWatcher> getWatchers(@NotNull InventoryResolver resolver) {
-        return suppliers.stream().map(supplier -> supplier.supply(resolver)).toList();
+        return suppliers.stream().map(supplier -> supplier.supply(resolver)).collect(Collectors.toList());
     }
 }

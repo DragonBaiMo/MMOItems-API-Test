@@ -7,8 +7,10 @@ import com.archyx.aureliumskills.data.PlayerDataLoadEvent;
 import com.archyx.aureliumskills.skills.Skill;
 import com.archyx.aureliumskills.skills.Skills;
 import com.archyx.aureliumskills.stats.Stats;
+import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.api.item.NBTItem;
+import io.lumine.mythic.lib.api.stat.StatInstance;
 import io.lumine.mythic.lib.version.Sounds;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.player.EmptyRPGPlayer;
@@ -25,10 +27,9 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * @deprecated Old version of {@link AuraSkillsHook}
@@ -37,25 +38,29 @@ import java.util.Map;
 public class AureliumSkillsHook implements RPGHandler, Listener {
     private final AureliumSkills aSkills;
 
-    private final Map<Stats, ItemStat> statExtra = new HashMap<>();
-
     public AureliumSkillsHook() {
         aSkills = (AureliumSkills) Bukkit.getPluginManager().getPlugin("AureliumSkills");
 
-        for (Stats stat : Stats.values()) {
-            final String statName = UtilityMethods.caseOnWords(stat.name().toLowerCase());
-            final ItemStat miStat = new DoubleStat("ADDITIONAL_" + stat.name(), Material.BOOK,
+        for (var auraStat : Stats.values()) {
+            final String statName = UtilityMethods.caseOnWords(auraStat.name().toLowerCase());
+            final ItemStat miStat = new DoubleStat("ADDITIONAL_" + auraStat.name(), Material.BOOK,
                     "Additional " + statName,
                     new String[]{"Additional " + statName + " (AureliumSkills)"},
                     new String[]{"!miscellaneous", "!block", "all"});
 
-            statExtra.put(stat, miStat);
             MMOItems.plugin.getStats().register(miStat);
+            MythicLib.plugin.getStats().computeStat(miStat.getId()).addUpdateListener(ins -> updateAuraStatModifier(ins, auraStat));
         }
 
         // Register stat for required professions
         for (Skills skill : Skills.values())
             MMOItems.plugin.getStats().register(new RequiredProfessionStat(skill));
+    }
+
+    private void updateAuraStatModifier(@NotNull StatInstance instance, @NotNull Stats auraStat) {
+        final var statValue = instance.getFinal();
+
+        AureliumAPI.addStatModifier(instance.getMap().getPlayer(), MODIFIER_KEY_PREFIX + auraStat.name(), auraStat, statValue);
     }
 
     @EventHandler
@@ -72,11 +77,6 @@ public class AureliumSkillsHook implements RPGHandler, Listener {
      * Be careful, ASkills permanently stores modifiers unlike ML
      */
     private static final String MODIFIER_KEY_PREFIX = "mmoitems_";
-
-    @Override
-    public void refreshStats(PlayerData data) {
-        statExtra.forEach((stat, miStat) -> AureliumAPI.addStatModifier(data.getPlayer(), MODIFIER_KEY_PREFIX + stat.name(), stat, data.getStat(miStat)));
-    }
 
     @Override
     public RPGPlayer getInfo(PlayerData data) {

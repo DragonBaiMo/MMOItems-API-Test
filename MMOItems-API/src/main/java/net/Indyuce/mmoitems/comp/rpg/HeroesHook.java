@@ -11,12 +11,13 @@ import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
+import io.lumine.mythic.lib.api.stat.StatInstance;
 import io.lumine.mythic.lib.damage.AttackHandler;
 import io.lumine.mythic.lib.damage.AttackMetadata;
 import io.lumine.mythic.lib.damage.DamageMetadata;
 import io.lumine.mythic.lib.damage.DamageType;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import io.lumine.mythic.lib.version.Sounds;
-import net.Indyuce.mmoitems.ItemStats;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.player.RPGPlayer;
 import net.Indyuce.mmoitems.api.util.message.Message;
@@ -24,7 +25,6 @@ import net.Indyuce.mmoitems.stat.type.DoubleStat;
 import net.Indyuce.mmoitems.stat.type.ItemRestriction;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
 import net.Indyuce.mmoitems.stat.type.RequiredLevelStat;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
@@ -49,7 +49,7 @@ public class HeroesHook implements RPGHandler, Listener, AttackHandler {
     private final Map<UUID, Integer> lastMaxMana = new HashMap<>();
     private final Map<UUID, Integer> lastMaxStamina = new HashMap<>();
 
-    public static final ItemStat MAX_STAMINA = new DoubleStat("MAX_STAMINA", Material.EMERALD, "Max Stamina", new String[]{"Adds stamina to your max stamina bar"}), REQUIRED_SECONDARY_HERO_LEVEL = new RequiredSecondaryLevel();
+    public static final ItemStat<?, ?> MAX_STAMINA = new DoubleStat("MAX_STAMINA", Material.EMERALD, "Max Stamina", new String[]{"Adds stamina to your max stamina bar"}), REQUIRED_SECONDARY_HERO_LEVEL = new RequiredSecondaryLevel();
 
 
     public HeroesHook() {
@@ -58,6 +58,9 @@ public class HeroesHook implements RPGHandler, Listener, AttackHandler {
         damages.put(SkillType.ABILITY_PROPERTY_PHYSICAL, DamageType.PHYSICAL);
         damages.put(SkillType.ABILITY_PROPERTY_MAGICAL, DamageType.MAGIC);
         damages.put(SkillType.ABILITY_PROPERTY_PROJECTILE, DamageType.PROJECTILE);
+
+        MythicLib.plugin.getStats().computeStat("MAX_MANA").addUpdateListener(this::updateMaxManaModifier);
+        MythicLib.plugin.getStats().computeStat("MAX_STAMINA").addUpdateListener(this::updateMaxStaminaModifier);
     }
 
     @NotNull
@@ -85,32 +88,32 @@ public class HeroesHook implements RPGHandler, Listener, AttackHandler {
         return new AttackMetadata(damageMeta, (LivingEntity) event.getEntity(), MMOPlayerData.get(player).getStatMap().cache(EquipmentSlot.MAIN_HAND));
     }
 
-    @Override
-    public void refreshStats(PlayerData data) {
-        final UUID uuid = data.getUniqueId();
-        Integer lastStamina = lastMaxStamina.get(uuid);
+    private void updateMaxManaModifier(StatInstance instance) {
+        final UUID uuid = instance.getMap().getPlayerData().getUniqueId();
         Integer lastMana = lastMaxMana.get(uuid);
-        if (lastStamina == null || lastMana == null) {
-            return;
-        }
+        if (lastMana == null) return;
 
-        Hero hero = Heroes.getInstance().getCharacterManager().getHero(data.getPlayer());
-
-        final int currentMana = (int) data.getStat(ItemStats.MAX_MANA);
+        Hero hero = Heroes.getInstance().getCharacterManager().getHero(instance.getMap().getPlayer());
+        final int currentMana = (int) instance.getFinal();
         if (currentMana != lastMana) {
             lastMaxMana.put(uuid, currentMana);
             hero.removeMaxMana("MMOItems");
             hero.addMaxMana("MMOItems", currentMana);
         }
-        final int currentStamina = (int) data.getStat(MAX_STAMINA);
+    }
+
+    private void updateMaxStaminaModifier(StatInstance instance) {
+        final UUID uuid = instance.getMap().getPlayerData().getUniqueId();
+        Integer lastStamina = lastMaxStamina.get(uuid);
+        if (lastStamina == null) return;
+
+        Hero hero = Heroes.getInstance().getCharacterManager().getHero(instance.getMap().getPlayer());
+        final int currentStamina = (int) instance.getFinal();
         if (currentStamina != lastStamina) {
             lastMaxStamina.put(uuid, currentStamina);
             hero.removeMaxStamina("MMOItems");
             hero.addMaxStamina("MMOItems", currentStamina);
         }
-
-        // Backwards compatibility. Max health is operated by MythicLib
-        hero.removeMaxHealth("MMOItems");
     }
 
     @Override

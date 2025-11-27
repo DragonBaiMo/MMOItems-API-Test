@@ -1,24 +1,26 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
-import net.Indyuce.mmoitems.command.MMOItemsCommandTreeRoot;
+import net.Indyuce.mmoitems.command.Arguments;
 import net.Indyuce.mmoitems.gui.edition.ItemEdition;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class EditCommandTreeNode extends CommandTreeNode {
 	public EditCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "edit");
 
-		addParameter(MMOItemsCommandTreeRoot.TYPE);
-		addParameter(MMOItemsCommandTreeRoot.ID_2);
+		addArgument(Arguments.ITEM_TYPE);
+		addArgument(Arguments.ITEM_ID_2);
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length < 3)
 			return CommandResult.THROW_USAGE;
 

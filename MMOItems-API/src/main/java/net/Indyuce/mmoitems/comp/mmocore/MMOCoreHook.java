@@ -1,10 +1,9 @@
 package net.Indyuce.mmoitems.comp.mmocore;
 
+import io.lumine.mythic.lib.MythicLib;
 import net.Indyuce.mmocore.MMOCore;
 import net.Indyuce.mmocore.api.event.PlayerChangeClassEvent;
-import net.Indyuce.mmocore.api.event.PlayerLevelUpEvent;
 import net.Indyuce.mmocore.api.event.PlayerResourceUpdateEvent;
-import net.Indyuce.mmocore.api.player.attribute.PlayerAttribute;
 import net.Indyuce.mmocore.api.player.stats.StatType;
 import net.Indyuce.mmocore.experience.EXPSource;
 import net.Indyuce.mmocore.experience.Profession;
@@ -25,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerLevelChangeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 
@@ -39,9 +39,19 @@ public class MMOCoreHook implements RPGHandler, Listener {
      * class has to be instantiated again for the registered stats to update
      */
     public MMOCoreHook() {
-        for (PlayerAttribute attribute : MMOCore.plugin.attributeManager.getAll()) {
+        for (var attribute : MMOCore.plugin.attributeManager.getAll()) {
+
+            // Item requirement
             MMOItems.plugin.getStats().register(new RequiredAttribute(attribute));
-            MMOItems.plugin.getStats().register(new ExtraAttribute(attribute));
+
+            // Extra attribute stat
+            final var extraStat = new ExtraAttribute(attribute);
+            MMOItems.plugin.getStats().register(extraStat);
+            MythicLib.plugin.getStats().computeStat(extraStat.getId()).addUpdateListener(statInstance -> {
+                final var mmocorePlayerData = net.Indyuce.mmocore.api.player.PlayerData.get(statInstance.getMap().getPlayer());
+                final var attributeInstance = mmocorePlayerData.getAttributes().getInstance(attribute);
+                attributeInstance.updateStats();
+            });
         }
 
         for (Profession profession : MMOCore.plugin.professionManager.getAll()) {
@@ -56,16 +66,12 @@ public class MMOCoreHook implements RPGHandler, Listener {
     }
 
     @Override
-    public void refreshStats(PlayerData data) {
-    }
-
-    @Override
     public RPGPlayer getInfo(PlayerData data) {
         return new MMOCoreRPGPlayer(data);
     }
 
-    @EventHandler
-    public void updateInventoryOnLevelUp(PlayerLevelUpEvent event) {
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void updateInventoryOnLevelUp(PlayerLevelChangeEvent event) {
         PlayerData.get(event.getPlayer()).resolveModifiersLater();
     }
 

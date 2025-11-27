@@ -68,6 +68,18 @@ public class AbilityEdition extends EditionInventory {
 		abilityItemMeta.setLore(abilityItemLore);
 		abilityItem.setItemMeta(abilityItemMeta);
 
+        ItemStack hideItem = new ItemStack(Material.WRITABLE_BOOK);
+        ItemMeta hideItemMeta = hideItem.getItemMeta();
+        hideItemMeta.setDisplayName(ChatColor.GREEN + "Hide From Lore");
+        List<String> hideItemLore = new ArrayList<>();
+        hideItemLore.add(ChatColor.GRAY + "Should your ability be hidden from item lore");
+        hideItemLore.add("");
+        hideItemLore.add(ChatColor.GRAY + "Current Value: " + ChatColor.GOLD + getEditedSection().getBoolean("ability." + configKey + ".hide"));
+        hideItemLore.add("");
+        hideItemLore.add(ChatColor.YELLOW + AltChar.listDash + " Click to switch.");
+        hideItemMeta.setLore(hideItemLore);
+        hideItem.setItemMeta(hideItemMeta);
+
 		if (ability != null) {
 			String castModeConfigString = getEditedSection().getString("ability." + configKey + ".mode");
 			String castModeFormat = castModeConfigString == null ? ""
@@ -138,6 +150,7 @@ public class AbilityEdition extends EditionInventory {
 
 		addEditionItems();
 		inventory.setItem(28, abilityItem);
+		inventory.setItem(37, hideItem);
 	}
 
 	@Override
@@ -148,8 +161,13 @@ public class AbilityEdition extends EditionInventory {
 		if (event.getInventory() != event.getClickedInventory() || !MMOUtils.isMetaItem(item, false))
 			return;
 
-		if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + AltChar.rightArrow + " Back")) {
-			new AbilityListEdition(getNavigator(), template).open(this);
+		if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Hide From Lore")) {
+            final var currentValue = getEditedSection().getBoolean("ability." + configKey + ".hide");
+            getEditedSection().set("ability." + configKey + ".hide", !currentValue);
+
+            registerTemplateEdition();
+            player.sendMessage(MMOItems.plugin.getPrefix() + (currentValue ? "Ability now shows in lore."
+                    : "Ability no longer shows in lore."));
 			return;
 		}
 

@@ -85,10 +85,6 @@ durability:
     # https://minecraft.fandom.com/wiki/Durability
     loss_cap: 0
 
-# There is currently a client-side Minecraft issue
-# where left clicking a
-fix-left-click-interact: false
-
 # An item with no tier will use this tier name
 # as its default tier name.
 default-tier-name: 'Common'
@@ -117,6 +113,31 @@ dropped-items:
     # Display item name over the dropped item
     hints: true
 
+# Toggle off to disable item permissions altogether.
+# Along with item commands, this stat can cause serious security
+# problems if given access to staff members/admins. If you don't
+# plan on using this stat, you can consider disabling it altogether.
+enable_item_granted_permissions: true
+
+item_commands:
+
+  # Toggle off to disable item commands altogether.
+  # Along with item commands, this stat can cause serious security
+  # problems if given access to staff members/admins. If you don't
+  # plan on using this stat, you can consider disabling it altogether.
+  enabled: true
+
+  # List of regex patterns for item command whitelist.
+  # For additional security, carefully choose a subset of
+  # commands to be executed by item commands. Any command that
+  # does not match any pattern in this list will not be executable.
+  # Some regex pattern examples:
+  # - "dm open .*" matches any command that STARTS with "dm open"
+  # - ".*hello world" matches any command that ENDS with "hello world"
+  # - "hat" matches the exact command "hat"
+  # Leave it to [] to disable whitelist
+  whitelist: []
+
 # Some item stats like 'Commands' or NBTTags can be abused to become op.
 # You can bind a specific permissions to these stats to limit their edition.
 # You need a perm plugin that supports Vault for that option to work.
@@ -126,6 +147,7 @@ op-item-stats:
     stats:
         - COMMANDS
         - CUSTOM_NBT
+        - GRANTED_PERMISSIONS
 
 item-upgrading:
 

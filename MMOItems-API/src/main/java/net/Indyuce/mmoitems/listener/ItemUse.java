@@ -130,7 +130,7 @@ public class ItemUse implements Listener {
             }
 
             useItem.getPlayerData().getMMOPlayerData().getCooldownMap().applyCooldown(useItem.getMMOItem(), useItem.getNBTItem().getStat("ITEM_COOLDOWN"));
-            useItem.executeCommands();
+            if (MMOItems.plugin.getLanguage().itemCommands) useItem.executeCommands();
         }
 
         // Target-free weapon effects
@@ -367,7 +367,7 @@ public class ItemUse implements Listener {
             if (result == Consumable.ConsumableConsumeResult.NOT_CONSUME) event.setCancelled(true);
 
             useItem.getPlayerData().getMMOPlayerData().getCooldownMap().applyCooldown(useItem.getMMOItem(), useItem.getNBTItem().getStat("ITEM_COOLDOWN"));
-            useItem.executeCommands();
+            if (MMOItems.plugin.getLanguage().itemCommands) useItem.executeCommands();
         }
     }
 

@@ -1,11 +1,12 @@
 package net.Indyuce.mmoitems.command.mmoitems.list;
 
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.skill.RegisteredSkill;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-
-import net.Indyuce.mmoitems.MMOItems;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import org.jetbrains.annotations.NotNull;
 
 public class AbilityCommandTreeNode extends CommandTreeNode {
 	public AbilityCommandTreeNode(CommandTreeNode parent) {
@@ -13,7 +14,7 @@ public class AbilityCommandTreeNode extends CommandTreeNode {
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		sender.sendMessage(ChatColor.DARK_GRAY + "" + ChatColor.STRIKETHROUGH + "-----------------[" + ChatColor.LIGHT_PURPLE + " Abilities "
 				+ ChatColor.DARK_GRAY + "" + ChatColor.STRIKETHROUGH + "]-----------------");
 		sender.sendMessage(ChatColor.WHITE + "Here are all the abilities you can bind to items.");

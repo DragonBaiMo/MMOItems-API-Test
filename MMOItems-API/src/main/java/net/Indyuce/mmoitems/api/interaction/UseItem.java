@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Random;
+import java.util.logging.Level;
 
 public class UseItem {
     protected final Player player;
@@ -91,11 +92,16 @@ public class UseItem {
      * @param command Command to execute
      */
     private void scheduleCommandExecution(CommandData command) {
-        String parsed = MythicLib.plugin.getPlaceholderParser().parse(player, command.getCommand());
+        final String parsedCommand = MythicLib.plugin.getPlaceholderParser().parse(player, command.getCommand());
 
-        if (!command.hasDelay()) dispatchCommand(parsed, command.isConsoleCommand(), command.hasOpPerms());
+        if (!MMOItems.plugin.getLanguage().isAllowed(parsedCommand)) {
+            MMOItems.plugin.getLogger().log(Level.WARNING, "Player " + getPlayer().getName() + " tried running un-whitelisted command '" + parsedCommand + "' with item '" + getMMOItem().getType().getId() + "." + getMMOItem().getId() + "'");
+            return;
+        }
+
+        if (!command.hasDelay()) dispatchCommand(parsedCommand, command.isConsoleCommand(), command.hasOpPerms());
         else
-            Bukkit.getScheduler().runTaskLater(MMOItems.plugin, () -> dispatchCommand(parsed, command.isConsoleCommand(), command.hasOpPerms()), (long) command.getDelay() * 20);
+            Bukkit.getScheduler().runTaskLater(MMOItems.plugin, () -> dispatchCommand(parsedCommand, command.isConsoleCommand(), command.hasOpPerms()), (long) command.getDelay() * 20);
     }
 
     /**

@@ -20,10 +20,6 @@ public class McRPGHook implements RPGHandler, Listener {
 		return new McRPGPlayer(data);
 	}
 
-	@Override
-	public void refreshStats(PlayerData data) {
-	}
-
 	public static class McRPGPlayer extends RPGPlayer {
 		public McRPGPlayer(PlayerData playerData) {
 			super(playerData);

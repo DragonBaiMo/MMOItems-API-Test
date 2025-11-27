@@ -2,8 +2,10 @@ package net.Indyuce.mmoitems.command.mmoitems;
 
 import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.api.util.SmartGive;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.ItemTier;
 import net.Indyuce.mmoitems.api.Type;
@@ -11,13 +13,13 @@ import net.Indyuce.mmoitems.api.item.template.MMOItemTemplate;
 import net.Indyuce.mmoitems.api.item.template.explorer.*;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.player.RPGPlayer;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -30,13 +32,13 @@ public class GenerateCommandTreeNode extends CommandTreeNode {
     public GenerateCommandTreeNode(CommandTreeNode parent) {
         super(parent, "generate");
 
-        addParameter(Parameter.PLAYER);
-        addParameter(new Parameter("(extra-args)", (explorer, list) -> list
+        addArgument(Argument.PLAYER);
+        addArgument(new Argument<>("extra-args", (explorer, list) -> list
                 .addAll(Arrays.asList("-matchlevel", "-matchclass", "-level:", "-class:", "-type:", "-id:", "-tier:", "-tierset:", "-gimme"))));
     }
 
     @Override
-    public CommandResult execute(CommandSender sender, String[] args) {
+    public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
         try {
             if (args.length < 2) return CommandResult.THROW_USAGE;
             final Player target = Bukkit.getPlayer(args[1]);

@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 /**
  * Handles configuration options and language. Since MMOItems 6.9+
@@ -43,13 +44,14 @@ public class ConfigManager implements Reloadable {
 
     // Cached config options
     public boolean replaceMushroomDrops, worldGenEnabled, upgradeRequirementsCheck, keepSoulboundOnDeath, rerollOnItemUpdate, opStatsEnabled, disableRemovedItems;
-    public boolean disableConsumableBlockClicks, weaponFlagChecks, consumableFlagChecks, toolFlagChecks, commandFlagChecks;
+    public boolean disableConsumableBlockClicks, weaponFlagChecks, consumableFlagChecks, toolFlagChecks, commandFlagChecks, itemGrantedPermissions, itemCommands;
     public int itemDurabilityLossCap;
     public double soulboundBaseDamage, soulboundPerLvlDamage, levelSpread;
     public NumericStatFormula defaultItemCapacity;
     public ReforgeOptions revisionOptions, gemRevisionOptions, phatLootsOptions;
     public final List<String> opStats = new ArrayList<>();
     public String itemTypeLoreTag, gemStoneLoreTag, defaultTierName;
+    public List<Pattern> itemCommandWhitelist = List.of();
     private final Map<Material, Integer> defaultPickaxePower = new HashMap<>();
     // Auto-bind default level when item does not define SOULBOUND_LEVEL
     public int autoBindDefaultLevel;
@@ -180,6 +182,18 @@ public class ConfigManager implements Reloadable {
         defaultTierName = MMOItems.plugin.getConfig().getString("default-tier-name");
         disableConsumableBlockClicks = MMOItems.plugin.getConfig().getBoolean("consumables.disable_clicks_on_blocks");
         itemDurabilityLossCap = MMOItems.plugin.getConfig().getInt("durability.loss_cap");
+        itemGrantedPermissions = MMOItems.plugin.getConfig().getBoolean("enable_item_granted_permissions");
+        itemCommands = MMOItems.plugin.getConfig().getBoolean("item_commands.enabled");
+
+        try {
+            var patternList = new ArrayList<Pattern>();
+            for (var rawPattern : MMOItems.plugin.getConfig().getStringList("item_commands.whitelist"))
+                patternList.add(Pattern.compile(rawPattern));
+            itemCommandWhitelist = patternList;
+        } catch (Throwable throwable) {
+            MMOItems.plugin.getLogger().log(Level.WARNING, "Could not load item command whitelist: " + throwable.getMessage());
+            itemCommandWhitelist = List.of();
+        }
 
         // Default soulbound level for AutoBindOnUse
         autoBindDefaultLevel = MMOItems.plugin.getConfig().getInt("auto-bind.default-level", 1);
@@ -230,6 +244,18 @@ public class ConfigManager implements Reloadable {
 
     public int getDefaultPickaxePower(@NotNull ItemStack item) {
         return defaultPickaxePower.getOrDefault(item.getType(), 0);
+    }
+
+    public boolean isAllowed(@NotNull String itemCommand) {
+        if (itemCommandWhitelist.isEmpty()) {
+            return true;
+        }
+        for (Pattern pattern : itemCommandWhitelist) {
+            if (pattern.matcher(itemCommand).matches()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

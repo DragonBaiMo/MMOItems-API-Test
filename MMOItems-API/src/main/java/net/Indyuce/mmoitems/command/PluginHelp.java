@@ -1,12 +1,12 @@
 package net.Indyuce.mmoitems.command;
 
+import io.lumine.mythic.lib.MythicLib;
+import io.lumine.mythic.lib.api.util.AltChar;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import io.lumine.mythic.lib.MythicLib;
-import io.lumine.mythic.lib.api.util.AltChar;
-
+@Deprecated
 public class PluginHelp {
 	private static final int commandsPerPage = 8;
 

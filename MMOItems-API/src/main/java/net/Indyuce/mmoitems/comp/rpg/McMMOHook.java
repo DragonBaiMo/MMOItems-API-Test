@@ -41,10 +41,6 @@ public class McMMOHook implements RPGHandler, Listener {
 		return new McMMOPlayer(data);
 	}
 
-	@Override
-	public void refreshStats(PlayerData data) {
-	}
-
 	public static class McMMOPlayer extends RPGPlayer {
 		public McMMOPlayer(PlayerData playerData) {
 			super(playerData);

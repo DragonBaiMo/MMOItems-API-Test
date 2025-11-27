@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-@Deprecated
 public abstract class InventoryWatcher {
 
     @Nullable
@@ -71,7 +70,7 @@ public abstract class InventoryWatcher {
         return Optional.of(stack == null ? new ItemStack(Material.AIR) : stack);
     }
 
-    public static void callbackIfNotNull(@Nullable ItemUpdate update, @NotNull Consumer<ItemUpdate> callback) {
-        if (update != null) callback.accept(update);
+    public static <T> void callIfNotNull(@Nullable T object, @NotNull Consumer<T> callback) {
+        if (object != null) callback.accept(object);
     }
 }

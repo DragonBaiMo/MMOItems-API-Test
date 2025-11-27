@@ -13,6 +13,7 @@ import io.lumine.mythic.lib.util.annotation.BackwardsCompatibility;
 import io.lumine.mythic.lib.util.lang3.Validate;
 import io.lumine.mythic.lib.version.Attributes;
 import io.lumine.mythic.lib.version.VPotionEffectType;
+import io.lumine.mythic.lib.version.VersionUtils;
 import net.Indyuce.mmoitems.ItemStats;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
@@ -27,6 +28,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffectType;
@@ -45,6 +47,36 @@ public class MMOUtils {
 
     public static boolean isColorable(@NotNull Particle particle) {
         return particle.getDataType() == Particle.DustOptions.class || particle.getDataType() == Color.class;
+    }
+
+    /**
+     * Temporary hack that patches an old problem with versions
+     * of Spigot. There used to be a bug where items that have attributes
+     * by default, like swords (grant attack damage & speed) needed
+     * a "decoy" attribute modifier to avoid showing the default
+     * attribute lore.
+     * <p>
+     * This is no longer a bug in recent Spigot versions and attribute
+     * lore can just be hidden using item flag HIDE_ATTRIBUTES.
+     * <p>
+     * Also, this bug is only with MMOItems, since it is the only MMO
+     * plugin that actually has non-configurable UIs
+     *
+     * @param meta Item meta to fix
+     * @deprecated TODO Move to MythicLib and unify this hacky fix
+     */
+    @Deprecated
+    public static void fixAttributeLore(@NotNull ItemMeta meta) {
+        final var version = MythicLib.plugin.getVersion();
+
+        // Not sure about 1.21
+        if (version.isAbove(1, 21)) {
+            // Ignore
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        } else {
+            meta.addItemFlags(ItemFlag.values());
+            VersionUtils.addEmptyAttributeModifier(meta);
+        }
     }
 
     /**

@@ -1,11 +1,12 @@
 package net.Indyuce.mmoitems.command.mmoitems.update;
 
-import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
-
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.PluginUpdate;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
+import org.jetbrains.annotations.NotNull;
 
 public class ListCommandTreeNode extends CommandTreeNode {
 	public ListCommandTreeNode(CommandTreeNode parent) {
@@ -13,7 +14,7 @@ public class ListCommandTreeNode extends CommandTreeNode {
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		sender.sendMessage(ChatColor.LIGHT_PURPLE + "Available Config Updates");
 		for (PluginUpdate update : MMOItems.plugin.getUpdates().getAll())
 			sender.sendMessage(ChatColor.DARK_GRAY + "- Update " + update.getId());

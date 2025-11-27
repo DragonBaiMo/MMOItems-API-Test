@@ -2,8 +2,9 @@ package net.Indyuce.mmoitems.command.mmoitems;
 
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
 import io.lumine.mythic.lib.player.PlayerMetadata;
 import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
@@ -14,29 +15,30 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class AbilityCommandTreeNode extends CommandTreeNode {
 	public AbilityCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "ability");
 
-		addParameter(new Parameter("<ability>",
+		addArgument(new Argument<>("ability",
 				(explorer, list) -> MMOItems.plugin.getSkills().getAll().forEach(ability -> list.add(ability.getHandler().getId()))));
-		addParameter(Parameter.PLAYER_OPTIONAL);
+		addArgument(Argument.PLAYER_OR_SENDER);
 
 		for (int j = 0; j < 10; j++) {
-			addParameter(new Parameter("<modifier>", (explorer, list) -> {
+			addArgument(new Argument<>("modifier", (explorer, list) -> {
 				try {
 					RegisteredSkill ability = MMOItems.plugin.getSkills().getSkillOrThrow(explorer.getArguments()[1].toUpperCase().replace("-", "_"));
 					list.addAll(ability.getHandler().getModifiers());
 				} catch (Exception ignored) {
 				}
 			}));
-			addParameter(new Parameter("<value>", (explorer, list) -> list.add("0")));
+			addArgument(new Argument<>("value", (explorer, list) -> list.add("0")));
 		}
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length < 2)
 			return CommandResult.THROW_USAGE;
 

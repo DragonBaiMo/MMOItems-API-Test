@@ -19,15 +19,6 @@ public interface RPGHandler {
      */
     RPGPlayer getInfo(PlayerData data);
 
-    /**
-     * Called everytime the player's inventory updates. This
-     * method should update the rpg stats like Max Mana which
-     * are normally given by items.
-     *
-     * @param data Player to update
-     */
-    void refreshStats(PlayerData data);
-
     enum PluginEnum {
         MMOCORE("MMOCore", MMOCoreHook.class),
         HEROES("Heroes", HeroesHook.class),

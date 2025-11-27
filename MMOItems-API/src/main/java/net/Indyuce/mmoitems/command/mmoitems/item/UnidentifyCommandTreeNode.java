@@ -1,14 +1,14 @@
 package net.Indyuce.mmoitems.command.mmoitems.item;
 
+import io.lumine.mythic.lib.api.item.NBTItem;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-
-import net.Indyuce.mmoitems.MMOItems;
-import io.lumine.mythic.lib.MythicLib;
-import io.lumine.mythic.lib.api.item.NBTItem;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import org.jetbrains.annotations.NotNull;
 
 public class UnidentifyCommandTreeNode extends CommandTreeNode {
 	public UnidentifyCommandTreeNode(CommandTreeNode parent) {
@@ -16,7 +16,7 @@ public class UnidentifyCommandTreeNode extends CommandTreeNode {
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (!(sender instanceof Player)) {
 			sender.sendMessage(ChatColor.RED + "This command is only for players.");
 			return CommandResult.FAILURE;

@@ -8,13 +8,13 @@ import io.lumine.mythic.lib.skill.Skill;
 import io.lumine.mythic.lib.skill.SkillMetadata;
 import io.lumine.mythic.lib.skill.handler.SkillHandler;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.player.RPGPlayer;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.skill.RegisteredSkill;
 import net.Indyuce.mmoitems.util.MMOUtils;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -34,12 +34,14 @@ import java.util.Set;
 public class AbilityData extends Skill {
     private final RegisteredSkill ability;
     private final TriggerType triggerType;
+    private final boolean hide;
     @NotNull
     private final Map<String, Double> modifiers = new HashMap<>();
 
     public AbilityData(@NotNull JsonObject object) {
         triggerType = MMOUtils.backwardsCompatibleTriggerType(object.get("CastMode").getAsString());
         ability = MMOItems.plugin.getSkills().getSkill(object.get("Id").getAsString());
+        hide = object.has("Hide") && object.get("Hide").getAsBoolean();
 
         JsonObject modifiers = object.getAsJsonObject("Modifiers");
         modifiers.entrySet().forEach(entry -> setModifier(entry.getKey(), entry.getValue().getAsDouble()));
@@ -52,15 +54,22 @@ public class AbilityData extends Skill {
         String abilityFormat = UtilityMethods.enumName(config.getString("type"));
         Validate.isTrue(MMOItems.plugin.getSkills().hasSkill(abilityFormat), "Could not find ability called '" + abilityFormat + "'");
         ability = MMOItems.plugin.getSkills().getSkill(abilityFormat);
+        hide = config.getBoolean("hide");
 
         for (String key : config.getKeys(false))
             if (!key.equalsIgnoreCase("mode") && !key.equalsIgnoreCase("type") && ability.getHandler().getModifiers().contains(key))
                 modifiers.put(key, config.getDouble(key));
     }
 
+
     public AbilityData(RegisteredSkill ability, TriggerType triggerType) {
+        this(ability, triggerType, false);
+    }
+
+    public AbilityData(RegisteredSkill ability, TriggerType triggerType, boolean hide) {
         this.triggerType = triggerType;
         this.ability = ability;
+        this.hide = hide;
     }
 
     public RegisteredSkill getAbility() {
@@ -70,6 +79,10 @@ public class AbilityData extends Skill {
     @Override
     public TriggerType getTrigger() {
         return triggerType;
+    }
+
+    public boolean hidesFromLore() {
+        return hide;
     }
 
     public Set<String> getModifiers() {
@@ -155,6 +168,7 @@ public class AbilityData extends Skill {
         JsonObject object = new JsonObject();
         object.addProperty("Id", ability.getHandler().getId());
         object.addProperty("CastMode", getTrigger().name());
+        object.addProperty("Hide", this.hide);
 
         JsonObject modifiers = new JsonObject();
         this.modifiers.keySet().forEach(modifier -> modifiers.addProperty(modifier, getParameter(modifier)));
@@ -168,19 +182,21 @@ public class AbilityData extends Skill {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AbilityData that = (AbilityData) o;
-        return ability.equals(that.ability) && getTrigger().equals(that.getTrigger()) && modifiers.equals(that.modifiers);
+        return ability.equals(that.ability) && getTrigger().equals(that.getTrigger()) && hide == that.hide && modifiers.equals(that.modifiers);
     }
 
     @Override
     public String toString() {
         return "AbilityData{" +
                 "ability=" + ability +
+                ", triggerType=" + triggerType +
                 ", modifiers=" + modifiers +
+                ", hide=" + hide +
                 '}';
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ability, modifiers);
+        return Objects.hash(ability, triggerType, hide, modifiers);
     }
 }

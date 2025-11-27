@@ -2,7 +2,6 @@ package net.Indyuce.mmoitems.listener;
 
 import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.api.event.PlayerAttackEvent;
-import io.lumine.mythic.lib.api.event.SynchronizedDataLoadEvent;
 import io.lumine.mythic.lib.api.event.armorequip.ArmorEquipEvent;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
@@ -146,15 +145,6 @@ public class PlayerListener implements Listener {
         if (playerData != null) {
             scheduleLoginRefresh(playerData, "玩家加入服务器");
         }
-    }
-
-    @EventHandler
-    public void resolveInvWhenDataLoaded(SynchronizedDataLoadEvent event) {
-        if (!event.syncIsFull() || !event.getHolder().getMMOPlayerData().isOnline()) {
-            return;
-        }
-        final PlayerData playerData = PlayerData.get(event.getHolder().getUniqueId());
-        scheduleLoginRefresh(playerData, "MythicLib 数据同步完成");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

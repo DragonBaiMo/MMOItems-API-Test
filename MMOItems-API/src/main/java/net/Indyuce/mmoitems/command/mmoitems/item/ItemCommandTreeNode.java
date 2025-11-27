@@ -1,8 +1,6 @@
 package net.Indyuce.mmoitems.command.mmoitems.item;
 
-import org.bukkit.command.CommandSender;
-
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 
 public class ItemCommandTreeNode extends CommandTreeNode {
 	public ItemCommandTreeNode(CommandTreeNode parent) {
@@ -12,10 +10,5 @@ public class ItemCommandTreeNode extends CommandTreeNode {
 		addChild(new UnidentifyCommandTreeNode(this));
 		addChild(new RepairCommandTreeNode(this));
 		addChild(new DeconstructCommandTreeNode(this));
-	}
-
-	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
-		return CommandResult.THROW_USAGE;
 	}
 }

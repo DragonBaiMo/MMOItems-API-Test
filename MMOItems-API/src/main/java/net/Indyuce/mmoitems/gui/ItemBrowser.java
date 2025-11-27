@@ -258,14 +258,18 @@ public class ItemBrowser extends MMOItemsInventory {
 
         ItemStack item = event.getCurrentItem();
         if (MMOUtils.isMetaItem(item, false)) {
-            if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Next Page")) {
+
+            // Back Button
+            if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + AltChar.rightArrow + " Back"))
+                getNavigator().popOpen();
+
+            else if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Next Page")) {
                 page++;
                 open();
             } else if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Previous Page")) {
                 page--;
                 open();
-            } else if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + AltChar.rightArrow + " Back"))
-                getNavigator().popOpen();
+            }
 
             else if (item.getItemMeta().getDisplayName().equals(ChatColor.RED + "Cancel Deletion")) {
                 deleteMode = false;

@@ -3,11 +3,11 @@ package net.Indyuce.mmoitems.api.item.template;
 import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.util.PostLoadAction;
 import io.lumine.mythic.lib.util.PreloadedObject;
+import io.lumine.mythic.lib.util.lang3.Validate;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.item.build.MMOItemBuilder;
 import net.Indyuce.mmoitems.stat.data.random.RandomStatData;
 import net.Indyuce.mmoitems.stat.type.ItemStat;
-import io.lumine.mythic.lib.util.lang3.Validate;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -79,8 +79,8 @@ public class ModifierNode implements PreloadedObject {
         // Number -> simple reference
         if (configObject instanceof Number) {
             referenceNode = findReferenceNode(id);
-            chance = referenceNode.chance;
-            weight = ((Number) configObject).doubleValue();
+            chance = ((Number) configObject).doubleValue();
+            weight = referenceNode.weight;
             nameModifier = referenceNode.nameModifier;
         }
 
@@ -187,10 +187,15 @@ public class ModifierNode implements PreloadedObject {
         return children;
     }
 
+    @Deprecated
     public boolean collect(@NotNull MMOItemBuilder builder) {
+        return collect(builder, false);
+    }
+
+    private boolean collect(@NotNull MMOItemBuilder builder, boolean skipChance) {
 
         // Roll modifier node chance
-        if (!rollChance()) return false;
+        if (!skipChance && !rollChance()) return false;
 
         // Check modifier node weight constraint
         if (weight > builder.getCapacity()) return false;
@@ -205,11 +210,15 @@ public class ModifierNode implements PreloadedObject {
 
     public void whenCollected(@NotNull MMOItemBuilder builder, @NotNull UUID modifierId) {
 
-        // VANILLA MODIFIER SECTION
+        /////////////////////////////
+        // SIMPLE MODIFIER
+        /////////////////////////////
 
         data.forEach((itemStat, statData) -> builder.addModifierData(itemStat, statData.randomize(builder), modifierId));
 
-        // MODIFIER GROUP SECTION
+        /////////////////////////////
+        // MODIFIER GROUP
+        /////////////////////////////
 
         // Get deep working copy of children list
         final List<ModifierNode> children = new ArrayList<>(this.children);
@@ -217,19 +226,22 @@ public class ModifierNode implements PreloadedObject {
             Collections.shuffle(children);
 
         final int effectiveMax = max <= 0 ? children.size() : Math.min(max, children.size());
+        int modifierCount = 0;
 
         // Normally roll all modifiers until max amount is reached
         int i = 0;
-        while (this.children.size() - children.size() < effectiveMax && i < children.size()) {
+        while (modifierCount < effectiveMax && i < children.size()) {
             final ModifierNode next = children.get(i);
-            if (next.collect(builder)) children.remove(i);
-            else i++;
+            if (next.collect(builder)) {
+                children.remove(i);
+                modifierCount++;
+            } else i++;
         }
 
-        // If needed, select more using chances as probability distributions
-        while (this.children.size() - children.size() < min) {
+        // If needed, select more using roll chances as probability distribution
+        while (modifierCount < min && !children.isEmpty()) {
             final ModifierNode node = children.remove(rollModifier(children));
-            node.collect(builder);
+            if (node.collect(builder, true)) modifierCount++;
         }
     }
 

@@ -10,10 +10,8 @@ import net.Indyuce.mmoitems.api.edition.StatEdition;
 import net.Indyuce.mmoitems.api.item.template.MMOItemTemplate;
 import net.Indyuce.mmoitems.util.MMOUtils;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -44,7 +42,7 @@ public class SoundsEdition extends EditionInventory {
 		for (CustomSound sound : CustomSound.values()) {
 			ItemStack soundEvent = sound.getItem().clone();
 			ItemMeta soundEventMeta = soundEvent.getItemMeta();
-			soundEventMeta.addItemFlags(ItemFlag.values());
+			MMOUtils.fixAttributeLore(soundEventMeta);
 			soundEventMeta.setDisplayName(ChatColor.GREEN + sound.getName());
 			List<String> eventLore = new ArrayList<>();
 			for (String lore : sound.getLore())

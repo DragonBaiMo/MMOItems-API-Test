@@ -1,7 +1,6 @@
 package net.Indyuce.mmoitems.command.mmoitems.debug;
 
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import org.bukkit.command.CommandSender;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 
 public class DebugCommandTreeNode extends CommandTreeNode {
     public DebugCommandTreeNode(CommandTreeNode parent) {
@@ -15,10 +14,5 @@ public class DebugCommandTreeNode extends CommandTreeNode {
         addChild(new InfoCommandTreeNode(this));
         addChild(new HealCommandTreeNode(this));
         addChild(new TestCommandTreeNode(this));
-    }
-
-    @Override
-    public CommandResult execute(CommandSender sender, String[] args) {
-        return CommandResult.THROW_USAGE;
     }
 }

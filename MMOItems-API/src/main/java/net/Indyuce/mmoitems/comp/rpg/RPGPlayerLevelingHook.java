@@ -6,10 +6,6 @@ import net.Indyuce.mmoitems.api.player.RPGPlayer;
 
 public class RPGPlayerLevelingHook implements RPGHandler {
     @Override
-    public void refreshStats(PlayerData data) {
-    }
-
-    @Override
     public RPGPlayer getInfo(PlayerData data) {
         return new RPGPlayerLevelingPlayer(data);
     }

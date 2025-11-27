@@ -35,7 +35,6 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -160,7 +159,7 @@ public class EditableCraftingStationView extends EditableInventory {
             ItemMeta meta = item.getItemMeta();
             AdventureUtils.setDisplayName(meta, this.name.replace("{name}", MMOUtils.getDisplayName(item, meta)));
             AdventureUtils.setLore(meta, newLore);
-            meta.addItemFlags(ItemFlag.values());
+            MMOUtils.fixAttributeLore(meta);
             meta.getPersistentDataContainer().set(RECIPE_ID_KEY, PersistentDataType.STRING, upgradingRecipe.getId());
             item.setItemMeta(meta);
 
@@ -270,7 +269,7 @@ public class EditableCraftingStationView extends EditableInventory {
             item.setAmount(Math.min(64, amount));
 
             ItemMeta meta = item.getItemMeta();
-            meta.addItemFlags(ItemFlag.values());
+            MMOUtils.fixAttributeLore(meta);
             String rawNameFormat = amount > 1 ? nameMultiple.replace("{amount}", String.valueOf(amount)) : name; // Item name?
             AdventureUtils.setDisplayName(meta, rawNameFormat.replace("{name}", MMOUtils.getDisplayName(item, meta)));
             AdventureUtils.setLore(meta, newLore);
@@ -390,7 +389,7 @@ public class EditableCraftingStationView extends EditableInventory {
             ItemMeta meta = item.getItemMeta();
             AdventureUtils.setDisplayName(meta, this.name.replace("{name}", MMOUtils.getDisplayName(item)));
             AdventureUtils.setLore(meta, newLore);
-            meta.addItemFlags(ItemFlag.values());
+            MMOUtils.fixAttributeLore(meta);
             meta.getPersistentDataContainer().set(QUEUE_ITEM_ID_KEY, PersistentDataType.STRING, queueItem.getUniqueId().toString());
             item.setItemMeta(meta);
 

@@ -1,12 +1,14 @@
 package net.Indyuce.mmoitems.command.mmoitems.debug;
 
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 import io.lumine.mythic.lib.version.Attributes;
 import io.lumine.mythic.lib.version.VPotionEffectType;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
+import org.jetbrains.annotations.NotNull;
 
 public class HealCommandTreeNode extends CommandTreeNode {
 	public HealCommandTreeNode(CommandTreeNode parent) {
@@ -14,7 +16,7 @@ public class HealCommandTreeNode extends CommandTreeNode {
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (!(sender instanceof Player)) {
 			sender.sendMessage(ChatColor.RED + "This command is only for players.");
 			return CommandResult.FAILURE;

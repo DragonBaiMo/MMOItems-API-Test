@@ -1,13 +1,15 @@
 package net.Indyuce.mmoitems.command.mmoitems.debug;
 
 import io.lumine.mythic.lib.UtilityMethods;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +20,7 @@ public class TestCommandTreeNode extends CommandTreeNode {
     }
 
     @Override
-    public CommandResult execute(CommandSender sender, String[] args) {
+    public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 
         ItemStack stack = new ItemStack(Material.DIAMOND);
         ItemMeta meta = stack.getItemMeta();

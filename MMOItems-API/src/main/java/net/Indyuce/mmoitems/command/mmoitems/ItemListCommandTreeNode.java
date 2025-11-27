@@ -1,25 +1,26 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
+import io.lumine.mythic.lib.MythicLib;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import net.Indyuce.mmoitems.MMOItems;
+import net.Indyuce.mmoitems.api.Type;
+import net.Indyuce.mmoitems.command.Arguments;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-
-import net.Indyuce.mmoitems.MMOItems;
-import net.Indyuce.mmoitems.api.Type;
-import net.Indyuce.mmoitems.command.MMOItemsCommandTreeRoot;
-import io.lumine.mythic.lib.MythicLib;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import org.jetbrains.annotations.NotNull;
 
 public class ItemListCommandTreeNode extends CommandTreeNode {
 	public ItemListCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "itemlist");
 
-		addParameter(MMOItemsCommandTreeRoot.TYPE);
+		addArgument(Arguments.ITEM_TYPE);
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length < 2)
 			return CommandResult.THROW_USAGE;
 

@@ -9,10 +9,6 @@ import net.Indyuce.mmoitems.api.player.RPGPlayer;
 
 public class DefaultHook implements RPGHandler, Listener {
 
-	@Override
-	public void refreshStats(PlayerData data) {
-	}
-
 	@EventHandler
 	public void a(PlayerLevelChangeEvent event) {
 		PlayerData.get(event.getPlayer()).resolveModifiersLater();

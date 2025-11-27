@@ -19,6 +19,7 @@ public class RandomAbilityData {
 	private final RegisteredSkill ability;
 	private final TriggerType triggerType;
 	private final Map<String, NumericStatFormula> modifiers = new HashMap<>();
+	private final boolean hide;
 
 	public RandomAbilityData(ConfigurationSection config) {
 		Validate.isTrue(config.contains("type"), "Missing ability type");
@@ -27,6 +28,7 @@ public class RandomAbilityData {
 		String abilityFormat = config.getString("type").toUpperCase().replace("-", "_").replace(" ", "_");
 		Validate.isTrue(MMOItems.plugin.getSkills().hasSkill(abilityFormat), "Could not find ability called '" + abilityFormat + "'");
 		ability = MMOItems.plugin.getSkills().getSkill(abilityFormat);
+		hide = config.getBoolean("hide");
 
 		String modeFormat = config.getString("mode").toUpperCase().replace("-", "_").replace(" ", "_");
 		triggerType = MMOUtils.backwardsCompatibleTriggerType(modeFormat);
@@ -39,6 +41,7 @@ public class RandomAbilityData {
 	public RandomAbilityData(RegisteredSkill ability, TriggerType triggerType) {
 		this.ability = ability;
 		this.triggerType = triggerType;
+		this.hide = false;
 	}
 
 	public RegisteredSkill getAbility() {
@@ -66,7 +69,7 @@ public class RandomAbilityData {
 	}
 
 	public AbilityData randomize(MMOItemBuilder builder) {
-		AbilityData data = new AbilityData(ability, triggerType);
+		AbilityData data = new AbilityData(ability, triggerType, hide);
 		modifiers.forEach((key, formula) -> data.setModifier(key, formula.calculate(builder.getLevel())));
 		return data;
 	}

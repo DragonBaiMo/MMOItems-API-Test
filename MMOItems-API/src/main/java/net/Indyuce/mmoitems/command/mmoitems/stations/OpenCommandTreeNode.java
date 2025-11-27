@@ -1,24 +1,26 @@
 package net.Indyuce.mmoitems.command.mmoitems.stations;
 
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.crafting.CraftingStation;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public class OpenCommandTreeNode extends CommandTreeNode {
     public OpenCommandTreeNode(CommandTreeNode parent) {
         super(parent, "open");
 
-        addParameter(new Parameter("<station>",
+        addArgument(new Argument<>("station",
                 (explorer, list) -> MMOItems.plugin.getCrafting().getStations().forEach(station -> list.add(station.getId()))));
     }
 
     @Override
-    public CommandResult execute(CommandSender sender, String[] args) {
+    public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
         if (args.length < 3)
             return CommandResult.THROW_USAGE;
 

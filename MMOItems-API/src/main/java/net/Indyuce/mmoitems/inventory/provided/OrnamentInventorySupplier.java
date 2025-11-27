@@ -53,7 +53,7 @@ public class OrnamentInventorySupplier implements InventorySupplier, Listener {
         @Override
         public void watchAll(@NotNull Consumer<ItemUpdate> callback) {
             for (int i = 0; i < matrixEquipped.length; i++)
-                callbackIfNotNull(watchInventory(i, Optional.empty()), callback);
+                callIfNotNull(watchInventory(i, Optional.empty()), callback);
         }
     }
 
@@ -75,4 +75,3 @@ public class OrnamentInventorySupplier implements InventorySupplier, Listener {
             PlayerData.get(event.getPlayer()).resolveInventory();
     }
 }
-

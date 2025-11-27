@@ -22,10 +22,6 @@ public class FabledHook implements RPGHandler, Listener {
         net.Indyuce.mmoitems.api.player.PlayerData.get(event.getPlayerData().getPlayer()).resolveModifiersLater();
     }
 
-    @Override
-    public void refreshStats(net.Indyuce.mmoitems.api.player.PlayerData data) {
-    }
-
     private static class PlayerWrapper extends RPGPlayer {
         public PlayerWrapper(net.Indyuce.mmoitems.api.player.PlayerData playerData) {
             super(playerData);

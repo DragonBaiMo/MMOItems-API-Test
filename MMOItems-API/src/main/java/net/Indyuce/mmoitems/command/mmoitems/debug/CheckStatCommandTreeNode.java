@@ -1,37 +1,36 @@
 package net.Indyuce.mmoitems.command.mmoitems.debug;
 
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
+import net.Indyuce.mmoitems.api.player.PlayerData;
+import net.Indyuce.mmoitems.command.Arguments;
+import net.Indyuce.mmoitems.stat.type.ItemStat;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-
-import net.Indyuce.mmoitems.MMOItems;
-import net.Indyuce.mmoitems.api.player.PlayerData;
-import net.Indyuce.mmoitems.stat.type.ItemStat;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import org.jetbrains.annotations.NotNull;
 
 public class CheckStatCommandTreeNode extends CommandTreeNode {
-	public CheckStatCommandTreeNode(CommandTreeNode parent) {
-		super(parent, "checkstat");
-	}
+    private final Argument<ItemStat<?, ?>> argStat;
 
-	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
-		if (args.length < 3)
-			return CommandResult.THROW_USAGE;
+    public CheckStatCommandTreeNode(CommandTreeNode parent) {
+        super(parent, "checkstat");
 
-		if (!(sender instanceof Player)) {
-			sender.sendMessage(ChatColor.RED + "This command is only for players.");
-			return CommandResult.FAILURE;
-		}
+        argStat = addArgument(Arguments.ITEM_STAT);
+    }
 
-		ItemStat<?, ?> stat = MMOItems.plugin.getStats().get(args[2].toUpperCase().replace("-", "_"));
-		if (stat == null) {
-			sender.sendMessage(ChatColor.RED + "Couldn't find the stat called " + args[2].toUpperCase().replace("-", "_") + ".");
-			return CommandResult.FAILURE;
-		}
+    @Override
+    public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ChatColor.RED + "This command is only for players.");
+            return CommandResult.FAILURE;
+        }
 
-		Player player = (Player) sender;
-		player.sendMessage("Found stat with ID " + stat.getId() + " = " + PlayerData.get((Player) sender).getStat(stat));
-		return CommandResult.SUCCESS;
-	}
+        final var stat = explorer.parse(argStat);
+
+        Player player = (Player) sender;
+        player.sendMessage("Found stat with ID " + stat.getId() + " = " + PlayerData.get((Player) sender).getStat(stat));
+        return CommandResult.SUCCESS;
+    }
 }

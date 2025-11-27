@@ -441,7 +441,7 @@ public abstract class RecipeEditorGUI extends EditionInventory {
                 registerTemplateEdition();
 
                 // Refresh yes
-                refreshInventory();
+                open();
 
                 // Maybe its a button
             } else {

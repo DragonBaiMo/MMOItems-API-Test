@@ -4,19 +4,24 @@ import de.tobiyas.racesandclasses.eventprocessing.events.leveling.LevelDownEvent
 import de.tobiyas.racesandclasses.eventprocessing.events.leveling.LevelUpEvent;
 import de.tobiyas.racesandclasses.playermanagement.player.RaCPlayer;
 import de.tobiyas.racesandclasses.playermanagement.player.RaCPlayerManager;
-import net.Indyuce.mmoitems.ItemStats;
+import io.lumine.mythic.lib.MythicLib;
+import io.lumine.mythic.lib.api.stat.StatInstance;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.player.RPGPlayer;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
 public class RacesAndClassesHook implements RPGHandler, Listener {
+    public RacesAndClassesHook() {
+        MythicLib.plugin.getStats().computeStat("MAX_MANA").addUpdateListener(this::updateMaxManaModifier);
+    }
 
-    @Override
-    public void refreshStats(PlayerData data) {
-        RaCPlayer info = RaCPlayerManager.get().getPlayer(data.getPlayer());
+    private void updateMaxManaModifier(StatInstance instance) {
+        final var statValue = instance.getFinal();
+
+        RaCPlayer info = RaCPlayerManager.get().getPlayer(instance.getMap().getPlayer());
         info.getManaManager().removeMaxManaBonus("MMOItems");
-        info.getManaManager().addMaxManaBonus("MMOItems", data.getStat(ItemStats.MAX_MANA));
+        info.getManaManager().addMaxManaBonus("MMOItems", statValue);
     }
 
     @Override

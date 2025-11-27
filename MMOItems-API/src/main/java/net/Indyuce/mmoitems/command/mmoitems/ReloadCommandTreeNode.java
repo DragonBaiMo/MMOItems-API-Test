@@ -1,14 +1,15 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
 import io.lumine.mythic.lib.MythicLib;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.event.MMOItemsReloadEvent;
 import net.Indyuce.mmoitems.api.util.MMOItemReforger;
-import net.Indyuce.mmoitems.api.util.NumericStatFormula;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
 
@@ -28,7 +29,7 @@ public class ReloadCommandTreeNode extends CommandTreeNode {
     }
 
     @Override
-    public CommandResult execute(CommandSender sender, String[] args) {
+    public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
         reloadMain(sender);
         return CommandResult.SUCCESS;
     }
@@ -42,7 +43,7 @@ public class ReloadCommandTreeNode extends CommandTreeNode {
         }
 
         @Override
-        public CommandResult execute(CommandSender sender, String[] args) {
+        public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
             action.accept(sender);
             return CommandResult.SUCCESS;
         }

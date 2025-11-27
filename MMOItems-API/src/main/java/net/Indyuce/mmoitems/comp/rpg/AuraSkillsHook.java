@@ -10,17 +10,17 @@ import dev.aurelium.auraskills.api.stat.Stats;
 import dev.aurelium.auraskills.api.trait.TraitModifier;
 import dev.aurelium.auraskills.api.trait.Traits;
 import dev.aurelium.auraskills.api.user.SkillsUser;
+import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.api.item.NBTItem;
+import io.lumine.mythic.lib.api.stat.StatInstance;
 import io.lumine.mythic.lib.version.Sounds;
-import net.Indyuce.mmoitems.ItemStats;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.player.EmptyRPGPlayer;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.player.RPGPlayer;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.stat.type.DoubleStat;
-import net.Indyuce.mmoitems.stat.type.ItemStat;
 import net.Indyuce.mmoitems.stat.type.RequiredLevelStat;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -28,34 +28,46 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class AuraSkillsHook implements RPGHandler, Listener {
-    private AuraSkillsApi aSkills;
-
-    private final Map<Stats, ItemStat> statExtra = new HashMap<>();
+    private final AuraSkillsApi aSkills;
 
     public AuraSkillsHook() {
-
         aSkills = AuraSkillsApi.get();
 
-        for (Stats stat : Stats.values()) {
-            final String statName = UtilityMethods.caseOnWords(stat.name().toLowerCase());
-            final ItemStat miStat = new DoubleStat("ADDITIONAL_" + stat.name(), Material.BOOK,
+        for (var auraStat : Stats.values()) {
+            final var statName = UtilityMethods.caseOnWords(auraStat.name().toLowerCase());
+            final var miStat = new DoubleStat("ADDITIONAL_" + auraStat.name(), Material.BOOK,
                     "Additional " + statName,
                     new String[]{"Additional " + statName + " (AuraSkills)"},
                     new String[]{"!miscellaneous", "!block", "all"});
 
-            statExtra.put(stat, miStat);
             MMOItems.plugin.getStats().register(miStat);
+            MythicLib.plugin.getStats().computeStat(miStat.getId()).addUpdateListener(ins -> updateAuraStatModifier(ins, auraStat));
         }
 
         // Register stat for required professions
         for (Skills skill : Skills.values())
             MMOItems.plugin.getStats().register(new RequiredProfessionStat(skill));
+
+        // Stat updates
+        MythicLib.plugin.getStats().computeStat("MAX_MANA").addUpdateListener(this::updateMaxManaModifier);
+    }
+
+    private void updateAuraStatModifier(@NotNull StatInstance instance, @NotNull Stats auraStat) {
+        final var statValue = instance.getFinal();
+
+        aSkills.getUser(instance.getMap().getPlayer().getUniqueId()).addStatModifier(new StatModifier(MODIFIER_KEY_PREFIX + auraStat.name(), auraStat, statValue));
+    }
+
+    private void updateMaxManaModifier(@NotNull StatInstance instance) {
+        final var auraUser = aSkills.getUser(instance.getMap().getPlayer().getUniqueId());
+        final var statValue = instance.getFinal();
+
+        auraUser.addTraitModifier(new TraitModifier(MODIFIER_KEY_PREFIX + "max_mana", Traits.MAX_MANA, statValue));
     }
 
     @EventHandler
@@ -74,21 +86,11 @@ public class AuraSkillsHook implements RPGHandler, Listener {
     private static final String MODIFIER_KEY_PREFIX = "mmoitems_";
 
     @Override
-    public void refreshStats(PlayerData data) {
-        SkillsUser user = aSkills.getUser(data.getPlayer().getUniqueId());
-
-        user.addTraitModifier(
-                new TraitModifier(MODIFIER_KEY_PREFIX + "max_mana", Traits.MAX_MANA, data.getStat(ItemStats.MAX_MANA)));
-
-        statExtra.forEach((stat, miStat) -> aSkills.getUser(data.getPlayer().getUniqueId()).addStatModifier(new StatModifier(MODIFIER_KEY_PREFIX + stat.name(), stat, data.getStat(miStat))));
-    }
-
-    @Override
     public RPGPlayer getInfo(PlayerData data) {
 
         /*
          * AuraSkills does not load player data directly on startup, instead we have to
-         * listen to the PlayerDataLoadEvent before caching the rpg player data instance.
+         * listen to UserLoadEvent before caching the RPG player data instance.
          *
          * See PlayerDataLoadEvent event handler below.
          */

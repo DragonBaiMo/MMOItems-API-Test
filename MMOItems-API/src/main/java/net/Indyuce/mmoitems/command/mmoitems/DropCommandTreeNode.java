@@ -1,38 +1,35 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.inventory.ItemStack;
-
+import io.lumine.mythic.lib.command.CommandTreeExplorer;
+import io.lumine.mythic.lib.command.CommandTreeNode;
+import io.lumine.mythic.lib.command.argument.Argument;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.droptable.item.MMOItemDropItem;
-import net.Indyuce.mmoitems.command.MMOItemsCommandTreeRoot;
-import io.lumine.mythic.lib.command.api.CommandTreeNode;
-import io.lumine.mythic.lib.command.api.Parameter;
+import net.Indyuce.mmoitems.command.Arguments;
+import org.bukkit.*;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 
 public class DropCommandTreeNode extends CommandTreeNode {
 	public DropCommandTreeNode(CommandTreeNode parent) {
 		super(parent, "drop");
 
-		addParameter(MMOItemsCommandTreeRoot.TYPE);
-		addParameter(MMOItemsCommandTreeRoot.ID_2);
-		addParameter(new Parameter("<world>", (explore, list) -> Bukkit.getWorlds().forEach(world -> list.add(world.getName()))));
-		addParameter(new Parameter("<x>", (explore, list) -> list.add("<x>")));
-		addParameter(new Parameter("<y>", (explore, list) -> list.add("<y>")));
-		addParameter(new Parameter("<z>", (explore, list) -> list.add("<z>")));
-		addParameter(new Parameter("<drop-chance>", (explore, list) -> list.add("<drop-chance>")));
-		addParameter(new Parameter("<min-max>", (explore, list) -> list.add("1-3")));
-		addParameter(new Parameter("<unidentify-chance>", (explore, list) -> list.add("<unidentify-chance>")));
+		addArgument(Arguments.ITEM_TYPE);
+		addArgument(Arguments.ITEM_ID_2);
+		addArgument(new Argument<>("world", (explore, list) -> Bukkit.getWorlds().forEach(world -> list.add(world.getName()))));
+		addArgument(new Argument<>("x", (explore, list) -> list.add("<x>")));
+		addArgument(new Argument<>("y", (explore, list) -> list.add("<y>")));
+		addArgument(new Argument<>("z", (explore, list) -> list.add("<z>")));
+		addArgument(new Argument<>("drop-chance", (explore, list) -> list.add("<drop-chance>")));
+		addArgument(new Argument<>("min-max", (explore, list) -> list.add("1-3")));
+		addArgument(new Argument<>("unidentify-chance", (explore, list) -> list.add("<unidentify-chance>")));
 	}
 
 	@Override
-	public CommandResult execute(CommandSender sender, String[] args) {
+	public @NotNull CommandResult execute(CommandTreeExplorer explorer, CommandSender sender, String[] args) {
 		if (args.length != 10)
 			return CommandResult.THROW_USAGE;
 

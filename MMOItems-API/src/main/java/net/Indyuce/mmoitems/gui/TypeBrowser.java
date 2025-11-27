@@ -14,7 +14,6 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -49,7 +48,7 @@ public class TypeBrowser extends MMOItemsInventory {
         int n = 0;
 
         // Create inventory
-        Inventory inv = Bukkit.createInventory(null, 54, "Type Browser");
+        Inventory inv = Bukkit.createInventory(this, 54, "Type Browser");
 
         // Fetch the list of types
         for (int j = min; j < Math.min(max, itemTypes.size()); j++) {
@@ -70,7 +69,7 @@ public class TypeBrowser extends MMOItemsInventory {
                 meta.setMaxStackSize(maxStackSize);
             }
             AdventureUtils.setDisplayName(meta, String.format("&a%s&8 (click to browse)", currentType.getName()));
-            meta.addItemFlags(ItemFlag.values());
+            MMOUtils.fixAttributeLore(meta);
             List<String> lore = new ArrayList<>();
             lore.add(String.format("&7&oThere %s %s &7&oitem%s in this type.", items == 1 ? "is" : "are", items < 1 ? "&c&ono" : "&6&o" + items, items == 1 ? "" : "s"));
             AdventureUtils.setLore(meta, lore);

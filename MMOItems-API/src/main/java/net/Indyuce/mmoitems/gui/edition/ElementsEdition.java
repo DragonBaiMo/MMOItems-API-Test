@@ -103,13 +103,13 @@ public class ElementsEdition extends EditionInventory {
 
         if (page > 1 && item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Previous Page")) {
             page--;
-            refreshInventory();
+            open();
             return;
         }
 
         if (page < maxPage && item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Next Page")) {
             page++;
-            refreshInventory();
+            open();
             return;
         }
 

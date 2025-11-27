@@ -2,7 +2,6 @@ package net.Indyuce.mmoitems.gui.edition;
 
 import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.gui.Navigator;
-import io.lumine.mythic.lib.version.VersionUtils;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.item.template.MMOItemTemplate;
 import net.Indyuce.mmoitems.gui.ItemBrowser;
@@ -14,7 +13,6 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -60,8 +58,7 @@ public class ItemEdition extends EditionInventory {
             ItemStat stat = appliable.get(j);
             ItemStack item = new ItemStack(stat.getDisplayMaterial());
             ItemMeta meta = item.getItemMeta();
-            meta.addItemFlags(ItemFlag.values());
-            VersionUtils.addEmptyAttributeModifier(meta);
+            MMOUtils.fixAttributeLore(meta);
             meta.setDisplayName(ChatColor.GREEN + stat.getName());
             List<String> lore = MythicLib.plugin.parseColors(Arrays.stream(stat.getLore()).map(s -> ChatColor.GRAY + s).collect(Collectors.toList()));
             lore.add("");
@@ -111,12 +108,12 @@ public class ItemEdition extends EditionInventory {
 
         if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Next Page")) {
             page++;
-            refreshInventory();
+            open();
         }
 
         if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "Previous Page")) {
             page--;
-            refreshInventory();
+            open();
         }
 
         final String tag = item.getItemMeta().getPersistentDataContainer().get(STAT_ID_KEY, PersistentDataType.STRING);
