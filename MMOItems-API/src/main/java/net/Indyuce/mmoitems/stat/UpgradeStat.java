@@ -38,6 +38,8 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import org.bukkit.inventory.ItemStack;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +47,32 @@ import java.util.Random;
 
 public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements ConsumableItemInteraction {
 	private static final Random RANDOM = new Random();
+
+	/**
+	 * 尝试从玩家背包中消耗指定保护标签的保护物品
+	 *
+	 * @param player 玩家
+	 * @param protectKey 保护标签
+	 * @return 是否成功找到并消耗保护物品
+	 */
+	private boolean tryConsumeProtection(@NotNull Player player, @Nullable String protectKey) {
+		if (protectKey == null || protectKey.isEmpty()) return false;
+
+		for (ItemStack item : player.getInventory().getContents()) {
+			if (item == null || item.getType() == Material.AIR) continue;
+
+			NBTItem nbt = NBTItem.get(item);
+			if (!nbt.hasTag(ItemStats.UPGRADE_PROTECTION.getNBTPath())) continue;
+
+			String itemProtectKey = nbt.getString(ItemStats.UPGRADE_PROTECTION.getNBTPath());
+			if (protectKey.equals(itemProtectKey)) {
+				// 消耗一个保护物品
+				item.setAmount(item.getAmount() - 1);
+				return true;
+			}
+		}
+		return false;
+	}
 
 	public UpgradeStat() {
         super("UPGRADE", Material.FLINT, "Item Upgrading",
@@ -133,6 +161,91 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 			return;
 		}
 
+		// 衰减系数
+		if (info[0].equals("decay-factor")) {
+			double factor = MMOUtils.parseDouble(message);
+			Validate.isTrue(factor > 0 && factor <= 1.0, "Decay factor must be between 0 and 1.");
+			inv.getEditedSection().set("upgrade.decay-factor", factor);
+			inv.registerTemplateEdition();
+			inv.getPlayer().sendMessage(
+					MMOItems.plugin.getPrefix() + "Decay factor set to " + ChatColor.GOLD + factor + ChatColor.GRAY + ".");
+			return;
+		}
+
+		// 掉级区间
+		if (info[0].equals("downgrade-range")) {
+			Validate.isTrue(message.contains("-"), "Range format must be 'min-max' (e.g. 5-15).");
+			String[] parts = message.split("-");
+			int min = Integer.parseInt(parts[0].trim());
+			int max = Integer.parseInt(parts[1].trim());
+			Validate.isTrue(min >= 0 && max >= min, "Invalid range values.");
+			inv.getEditedSection().set("upgrade.downgrade-range", min + "-" + max);
+			inv.registerTemplateEdition();
+			inv.getPlayer().sendMessage(
+					MMOItems.plugin.getPrefix() + "Downgrade range set to " + ChatColor.GOLD + min + "-" + max + ChatColor.GRAY + ".");
+			return;
+		}
+
+		// 掉级配置（chance,amount,protectKey）
+		if (info[0].equals("downgrade-config")) {
+			String[] parts = message.split(",");
+			if (parts.length >= 1) {
+				double chance = MMOUtils.parseDouble(parts[0].trim());
+				inv.getEditedSection().set("upgrade.downgrade-chance", chance);
+			}
+			if (parts.length >= 2) {
+				try {
+					int amount = Integer.parseInt(parts[1].trim());
+					Validate.isTrue(amount > 0, "Downgrade amount must be positive.");
+					inv.getEditedSection().set("upgrade.downgrade-amount", amount);
+				} catch (NumberFormatException e) {
+					inv.getPlayer().sendMessage(MMOItems.plugin.getPrefix() + ChatColor.RED + "Invalid amount value: " + parts[1].trim());
+					return;
+				}
+			}
+			if (parts.length >= 3) {
+				String protectKey = parts[2].trim();
+				if (!protectKey.isEmpty()) {
+					inv.getEditedSection().set("upgrade.downgrade-protect-key", protectKey);
+				}
+			}
+			inv.registerTemplateEdition();
+			inv.getPlayer().sendMessage(MMOItems.plugin.getPrefix() + "Downgrade config updated.");
+			return;
+		}
+
+		// 碎裂区间
+		if (info[0].equals("break-range")) {
+			Validate.isTrue(message.contains("-"), "Range format must be 'min-max' (e.g. 10-20).");
+			String[] parts = message.split("-");
+			int min = Integer.parseInt(parts[0].trim());
+			int max = Integer.parseInt(parts[1].trim());
+			Validate.isTrue(min >= 0 && max >= min, "Invalid range values.");
+			inv.getEditedSection().set("upgrade.break-range", min + "-" + max);
+			inv.registerTemplateEdition();
+			inv.getPlayer().sendMessage(
+					MMOItems.plugin.getPrefix() + "Break range set to " + ChatColor.GOLD + min + "-" + max + ChatColor.GRAY + ".");
+			return;
+		}
+
+		// 碎裂配置（chance,protectKey）
+		if (info[0].equals("break-config")) {
+			String[] parts = message.split(",");
+			if (parts.length >= 1) {
+				double chance = MMOUtils.parseDouble(parts[0].trim());
+				inv.getEditedSection().set("upgrade.break-chance", chance);
+			}
+			if (parts.length >= 2) {
+				String protectKey = parts[1].trim();
+				if (!protectKey.isEmpty()) {
+					inv.getEditedSection().set("upgrade.break-protect-key", protectKey);
+				}
+			}
+			inv.registerTemplateEdition();
+			inv.getPlayer().sendMessage(MMOItems.plugin.getPrefix() + "Break config updated.");
+			return;
+		}
+
 		Validate.isTrue(MMOItems.plugin.getUpgrades().hasTemplate(message), "Could not find any upgrade template with ID '" + message + "'.");
 		inv.getEditedSection().set("upgrade.template", message);
 		inv.registerTemplateEdition();
@@ -205,6 +318,13 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 
             if (targetSharpening.isWorkbench()) return false;
 
+            // 检查是否禁用了背包强化
+            if (targetSharpening.isBackpackDisabled()) {
+                Message.UPGRADE_BACKPACK_DISABLED.format(ChatColor.RED).send(player);
+                player.playSound(player.getLocation(), Sounds.ENTITY_VILLAGER_NO, 1, 2);
+                return false;
+            }
+
             if (!targetSharpening.canLevelUp()) {
                 Message.MAX_UPGRADES_HIT.format(ChatColor.RED).send(player);
                 player.playSound(player.getLocation(), Sounds.ENTITY_VILLAGER_NO, 1, 2);
@@ -223,11 +343,92 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 			if (called.isCancelled())
 				return false;
 
+			// 保存升级前的等级（用于衰减计算和惩罚判定）
+			int originalLevel = targetSharpening.getLevel();
+
+			// 计算实际成功率（消耗品提供基础成功率，目标物品的衰减配置决定如何随等级衰减）
+			double actualSuccess = consumableSharpening.getSuccess();
+			if (targetSharpening.isDecayEnabled() && targetSharpening.getDecayFactor() < 1.0) {
+				actualSuccess *= Math.pow(targetSharpening.getDecayFactor(), originalLevel);
+			}
+
+			if (RANDOM.nextDouble() > actualSuccess) {
+				// 强化失败 - 按优先级判定惩罚（使用升级前的等级）
+				String itemName = MMOUtils.getDisplayName(event.getCurrentItem());
+				boolean penaltyApplied = false;
+
+				// 优先级1：碎裂判定
+				if (targetSharpening.isInBreakRange(originalLevel) && targetSharpening.getBreakChance() > 0) {
+					if (RANDOM.nextDouble() < targetSharpening.getBreakChance()) {
+						// 触发碎裂，检查保护
+						if (tryConsumeProtection(player, targetSharpening.getBreakProtectKey())) {
+							Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+							player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+						} else {
+							// 执行碎裂
+							event.getCurrentItem().setAmount(0);
+							Message.UPGRADE_FAIL_BREAK.format(ChatColor.RED, "#item#", itemName).send(player);
+							player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 0.5f);
+							return true;
+						}
+						penaltyApplied = true;
+					}
+				}
+
+				// 优先级2：掉级判定（仅在碎裂未触发时）
+				if (!penaltyApplied && targetSharpening.isInDowngradeRange(originalLevel) && targetSharpening.getDowngradeChance() > 0) {
+					if (RANDOM.nextDouble() < targetSharpening.getDowngradeChance()) {
+						// 触发掉级，检查保护
+						if (tryConsumeProtection(player, targetSharpening.getDowngradeProtectKey())) {
+							Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+							player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+						} else {
+							// 执行掉级（基于升级前的等级）
+							int downgradeAmount = targetSharpening.getDowngradeAmount();
+							int newLevel = Math.max(targetSharpening.getMin(), originalLevel - downgradeAmount);
+							int actualDowngrade = originalLevel - newLevel;
+
+							if (actualDowngrade > 0) {
+								// 获取模板并降级
+								UpgradeTemplate downgradeTemplate = targetSharpening.getTemplate();
+								if (downgradeTemplate != null) {
+									downgradeTemplate.upgradeTo(targetMMO, newLevel);
+									NBTItem downgradedResult = targetMMO.newBuilder().buildNBT();
+									event.getCurrentItem().setItemMeta(downgradedResult.toItem().getItemMeta());
+								} else {
+									// 模板不存在，记录警告
+									MMOItems.plugin.getLogger().warning("Upgrade template not found for item " + itemName + ", cannot downgrade.");
+								}
+								Message.UPGRADE_FAIL_DOWNGRADE.format(ChatColor.RED, "#item#", itemName, "#amount#", String.valueOf(actualDowngrade)).send(player);
+								player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1.5f);
+							} else {
+								// 已经在最低等级，无法掉级
+								Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
+								player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1.5f);
+							}
+							return true;
+						}
+						penaltyApplied = true;
+					}
+				}
+
+				// 优先级3：原有的销毁逻辑（作为兜底）
+				if (!penaltyApplied) {
+					Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
+					if (targetSharpening.destroysOnFail())
+						event.getCurrentItem().setAmount(0);
+					player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
+				}
+
+				return true;
+			}
+
+			// 强化成功 - 执行升级
 			template.upgrade(targetMMO);
 			NBTItem result = targetMMO.newBuilder().buildNBT();
 
 			/*
-			 * Safe check, if the specs the item has after ugprade are too high
+			 * Safe check, if the specs the item has after upgrade are too high
 			 * for the player, then cancel upgrading because the player would
 			 * not be able to use it.
 			 */
@@ -235,14 +436,6 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 				Message.UPGRADE_REQUIREMENT_SAFE_CHECK.format(ChatColor.RED).send(player);
 				player.playSound(player.getLocation(), Sounds.ENTITY_VILLAGER_NO, 1, 2);
 				return false;
-			}
-
-			if (RANDOM.nextDouble() > consumableSharpening.getSuccess() * targetSharpening.getSuccess()) {
-				Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
-				if (targetSharpening.destroysOnFail())
-					event.getCurrentItem().setAmount(0);
-				player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
-				return true;
 			}
 
 			Message.UPGRADE_SUCCESS.format(ChatColor.YELLOW, "#item#", MMOUtils.getDisplayName(event.getCurrentItem())).send(player);

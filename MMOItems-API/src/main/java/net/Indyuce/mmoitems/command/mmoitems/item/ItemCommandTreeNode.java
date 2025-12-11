@@ -10,5 +10,6 @@ public class ItemCommandTreeNode extends CommandTreeNode {
 		addChild(new UnidentifyCommandTreeNode(this));
 		addChild(new RepairCommandTreeNode(this));
 		addChild(new DeconstructCommandTreeNode(this));
+		addChild(new UpgradeCommandTreeNode(this));
 	}
 }
