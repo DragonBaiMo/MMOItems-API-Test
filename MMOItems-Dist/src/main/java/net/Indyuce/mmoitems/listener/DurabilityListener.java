@@ -1,6 +1,8 @@
 package net.Indyuce.mmoitems.listener;
 
 import io.lumine.mythic.lib.UtilityMethods;
+import io.lumine.mythic.lib.api.event.PlayerAttackEvent;
+import io.lumine.mythic.lib.damage.DamageType;
 import io.lumine.mythic.lib.version.Sounds;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.interaction.util.DurabilityItem;
@@ -99,6 +101,27 @@ public class DurabilityListener implements Listener {
     }
 
     /**
+     * mmodamage 等技能型伤害造成时扣除主手自定义耐久，可通过配置开关控制。
+     */
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void handleMmoDamageDurability(PlayerAttackEvent event) {
+        if (!MMOItems.plugin.getLanguage().durabilityLossOnMmoDamage) return;
+
+        final Set<DamageType> types = event.getAttack().getDamage().collectTypes();
+        if (types.contains(DamageType.WEAPON) || types.contains(DamageType.PROJECTILE) || types.contains(DamageType.UNARMED))
+            return;
+
+        final Player player = event.getAttacker().getPlayer();
+        final DurabilityItem durabilityItem = DurabilityItem.custom(player, EquipmentSlot.HAND, player.getInventory().getItemInMainHand());
+        if (durabilityItem == null) return;
+
+        durabilityItem.decreaseDurability(capDurabilityLoss(1));
+        if (durabilityItem.updateInInventory().toItem() == null) {
+            player.getWorld().playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1);
+        }
+    }
+
+    /**
      * Handles mending exp for DAMAGEABLE items, CUSTOM durability.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -132,5 +155,6 @@ public class DurabilityListener implements Listener {
             // Play break sound
             player.getWorld().playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1);
         }
+
     }
 }

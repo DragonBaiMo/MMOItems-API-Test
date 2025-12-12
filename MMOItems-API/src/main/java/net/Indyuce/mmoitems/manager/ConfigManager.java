@@ -45,6 +45,7 @@ public class ConfigManager implements Reloadable {
     // Cached config options
     public boolean replaceMushroomDrops, worldGenEnabled, upgradeRequirementsCheck, keepSoulboundOnDeath, rerollOnItemUpdate, opStatsEnabled, disableRemovedItems;
     public boolean disableConsumableBlockClicks, weaponFlagChecks, consumableFlagChecks, toolFlagChecks, commandFlagChecks, itemGrantedPermissions, itemCommands;
+    public boolean durabilityLossOnMmoDamage;
     public int itemDurabilityLossCap;
     public double soulboundBaseDamage, soulboundPerLvlDamage, levelSpread;
     public NumericStatFormula defaultItemCapacity;
@@ -182,6 +183,7 @@ public class ConfigManager implements Reloadable {
         defaultTierName = MMOItems.plugin.getConfig().getString("default-tier-name");
         disableConsumableBlockClicks = MMOItems.plugin.getConfig().getBoolean("consumables.disable_clicks_on_blocks");
         itemDurabilityLossCap = MMOItems.plugin.getConfig().getInt("durability.loss_cap");
+        durabilityLossOnMmoDamage = MMOItems.plugin.getConfig().getBoolean("durability.mmo_damage_loss", true);
         itemGrantedPermissions = MMOItems.plugin.getConfig().getBoolean("enable_item_granted_permissions");
         itemCommands = MMOItems.plugin.getConfig().getBoolean("item_commands.enabled");
 

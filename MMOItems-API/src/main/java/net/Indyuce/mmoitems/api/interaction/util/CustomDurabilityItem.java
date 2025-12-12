@@ -17,6 +17,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
 /**
  * Class which handles custom durability; you can add or remove
  * some durability from an item and generate the new version.
@@ -131,9 +135,54 @@ public class CustomDurabilityItem extends DurabilityItem {
         }
 
         // Item lore update
-        final String format = MythicLib.inst().parseColors(ItemStats.ITEM_DAMAGE.getGeneralStatFormat().replace("{max}", String.valueOf(maxDurability)));
-        final String old = format.replace("{current}", String.valueOf(initialDurability));
-        final String replaced = format.replace("{current}", String.valueOf(durability));
-        return new LoreUpdate(item, meta, nbtItem, old, replaced).updateLore();
+        final String rawFormat = ItemStats.ITEM_DAMAGE.getGeneralStatFormat();
+        final String coloredFormat = MythicLib.inst().parseColors(rawFormat.replace("{max}", String.valueOf(maxDurability)));
+        final String old = coloredFormat.replace("{current}", String.valueOf(initialDurability));
+        final String replaced = coloredFormat.replace("{current}", String.valueOf(durability));
+        return updateDurabilityLore(item, meta, old, replaced, rawFormat);
+    }
+
+    /**
+     * 先按旧值精确匹配替换，若失败则根据当前配置格式做宽松数字匹配替换。
+     */
+    @NotNull
+    private ItemStack updateDurabilityLore(@NotNull ItemStack item, @NotNull ItemMeta meta, @NotNull String oldLine, @NotNull String newLine, @NotNull String rawFormat) {
+
+        final List<String> beforeLore = meta.getLore() == null ? null : new ArrayList<>(meta.getLore());
+        final ItemStack updated = new LoreUpdate(item, meta, nbtItem, oldLine, newLine).updateLore();
+
+        final ItemMeta updatedMeta = updated.getItemMeta();
+        final List<String> afterLore = updatedMeta.getLore();
+        if (beforeLore == null || afterLore == null || !beforeLore.equals(afterLore)) {
+            return updated;
+        }
+
+        // 构建宽松匹配正则：仅替换 {current}/{max} 数字不同的情况
+        final String coloredRaw = MythicLib.inst().parseColors(rawFormat);
+        final int currentIndex = coloredRaw.indexOf("{current}");
+        final int maxIndex = coloredRaw.indexOf("{max}");
+        if (currentIndex < 0 || maxIndex < 0 || currentIndex > maxIndex) {
+            return updated;
+        }
+
+        final String beforeCurrent = coloredRaw.substring(0, currentIndex);
+        final String betweenCurrentAndMax = coloredRaw.substring(currentIndex + "{current}".length(), maxIndex);
+        final String afterMax = coloredRaw.substring(maxIndex + "{max}".length());
+        final Pattern pattern = Pattern.compile(
+                Pattern.quote(beforeCurrent) + "\\d+" + Pattern.quote(betweenCurrentAndMax) + "\\d+" + Pattern.quote(afterMax),
+                Pattern.CASE_INSENSITIVE
+        );
+
+        for (int i = 0; i < afterLore.size(); i++) {
+            final String line = afterLore.get(i);
+            if (pattern.matcher(line).matches()) {
+                afterLore.set(i, newLine);
+                updatedMeta.setLore(afterLore);
+                updated.setItemMeta(updatedMeta);
+                return updated;
+            }
+        }
+
+        return updated;
     }
 }

@@ -379,8 +379,6 @@ public class ItemUse implements Listener {
     public void onUntargetedWeaponUse(@NotNull UntargetedWeaponUseEvent event) {
         final Weapon weapon = event.getWeapon();
         final PlayerData playerData = event.getPlayerData();
-        final NBTItem item = weapon.getNBTItem();
-        // 无提示，仅尝试绑定
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item);
+        // 此处不再重复自动绑定，绑定逻辑已在武器触发处完成，避免重复提示
     }
 }
