@@ -77,6 +77,19 @@ public enum Message {
     UPGRADE_CMD_FAIL_PROTECTED("&eUpgrade failed, but your item was protected by protect mode."),
     UPGRADE_CMD_FAIL_NO_PENALTY("&cUpgrade failed."),
 
+    // 强化扩展消息（保底、直达石、每日限制）
+    UPGRADE_GUARANTEE_TRIGGERED("&6保底触发！本次强化必定成功！"),
+    UPGRADE_DIRECT_UP_TRIGGERED("&d直达石生效！额外升级 #levels# 级！"),
+    UPGRADE_DAILY_LIMIT_REACHED("&c今日强化次数已用尽 (#used#/#max#)"),
+    UPGRADE_BROADCAST("&6[强化通报] &a#player# 的 &e#item#&a 强化到 &c+#level#&a 级！"),
+    UPGRADE_AUTO_BIND("&e你的 &6#item# &e在强化后已自动绑定（等级 #level#）。"),
+
+    // 强化转移消息
+    TRANSFER_SUCCESS("&a转移成功！&6#source#&a → &6#target#&a：+#from# → +#to#"),
+    TRANSFER_NO_STONE("&c背包中没有转移石。"),
+    TRANSFER_INCOMPATIBLE_TYPE("&c源物品与目标物品类型不兼容。"),
+    TRANSFER_NO_LEVEL("&c源物品没有可转移的强化等级。"),
+
     // Crafting stations
     NOT_ENOUGH_MATERIALS("You do not have enough materials to craft this item."),
     CONDITIONS_NOT_MET("You cannot craft this item."),

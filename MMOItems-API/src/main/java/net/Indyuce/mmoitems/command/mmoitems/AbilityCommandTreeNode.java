@@ -1,12 +1,9 @@
 package net.Indyuce.mmoitems.command.mmoitems;
 
-import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import io.lumine.mythic.lib.command.CommandTreeExplorer;
 import io.lumine.mythic.lib.command.CommandTreeNode;
 import io.lumine.mythic.lib.command.argument.Argument;
-import io.lumine.mythic.lib.player.PlayerMetadata;
-import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.skill.RegisteredSkill;
@@ -75,8 +72,7 @@ public class AbilityCommandTreeNode extends CommandTreeNode {
 			}
 		}
 
-		PlayerMetadata caster = MMOPlayerData.get(target).getStatMap().cache(EquipmentSlot.MAIN_HAND);
-		ability.cast(new TriggerMetadata(caster, null, null));
+		ability.cast(MMOPlayerData.get(target));
 		return CommandResult.SUCCESS;
 	}
 }

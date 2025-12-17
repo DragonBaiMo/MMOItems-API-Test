@@ -285,25 +285,3 @@ A: 惩罚优先级（从高到低）：
 2. 掉级（如果在掉级区间且触发）
 3. 销毁（如果 `destroy: true`）
 4. 无惩罚
-
----
-
-## 更新日志
-
-### v1.0.0（当前版本）
-- ✅ 添加 `disable-backpack` 配置选项
-- ✅ 实现强化命令系统
-- ✅ 支持 common 和 protect 两种模式
-- ✅ 支持 -free、-force、-direct 标志
-- ✅ 完整的权限系统
-- ✅ 保护物品自动消耗机制
-- ✅ 成功率衰减支持
-- ✅ 惩罚系统（掉级、碎裂、销毁）
-
----
-
-## 技术支持
-
-如有问题或建议，请访问：
-- GitHub Issues: [MMOItems Repository](https://github.com/Indyuce/MMOItems)
-- Discord: [MMOItems Community](https://discord.gg/mmoitems)

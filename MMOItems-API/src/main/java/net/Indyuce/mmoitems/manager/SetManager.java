@@ -28,7 +28,7 @@ public class SetManager implements Reloadable {
                 if (section == null)
                     throw new IllegalStateException(String.format("Item set '%s' is not a valid configuration section.", id));
                 itemSets.put(id, new ItemSet(section));
-            } catch (IllegalArgumentException exception) {
+            } catch (Exception exception) {
                 MMOItems.plugin.getLogger().log(Level.SEVERE, String.format("Could not load item set '%s': %s", id, exception.getMessage()));
             }
     }

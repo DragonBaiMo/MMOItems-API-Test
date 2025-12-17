@@ -63,11 +63,36 @@ public class UpgradeResult {
     private final int newLevel;
     private final int consumedStones;
 
+    // ===== 新增字段：辅料效果和保底机制 =====
+    /**
+     * 直达石额外升级的等级数
+     */
+    private final int directUpBonusLevels;
+
+    /**
+     * 是否触发了保底机制
+     */
+    private final boolean guaranteeTriggered;
+
+    /**
+     * 被保护拦截的惩罚类型（仅当 status 为 FAILURE_PROTECTED 或 penaltyResult 为 PROTECTED 时有意义）
+     */
+    private final PenaltyResult interceptedPenalty;
+
     /**
      * 私有构造函数，通过静态工厂方法创建实例
      */
     private UpgradeResult(Status status, MMOItem upgradedItem, PenaltyResult penaltyResult,
                           String message, int previousLevel, int newLevel, int consumedStones) {
+        this(status, upgradedItem, penaltyResult, message, previousLevel, newLevel, consumedStones, 0, false, PenaltyResult.NONE);
+    }
+
+    /**
+     * 完整私有构造函数（含辅料和保底字段）
+     */
+    private UpgradeResult(Status status, MMOItem upgradedItem, PenaltyResult penaltyResult,
+                          String message, int previousLevel, int newLevel, int consumedStones,
+                          int directUpBonusLevels, boolean guaranteeTriggered, PenaltyResult interceptedPenalty) {
         this.status = status;
         this.upgradedItem = upgradedItem;
         this.penaltyResult = penaltyResult;
@@ -75,6 +100,9 @@ public class UpgradeResult {
         this.previousLevel = previousLevel;
         this.newLevel = newLevel;
         this.consumedStones = consumedStones;
+        this.directUpBonusLevels = directUpBonusLevels;
+        this.guaranteeTriggered = guaranteeTriggered;
+        this.interceptedPenalty = interceptedPenalty != null ? interceptedPenalty : PenaltyResult.NONE;
     }
 
     // ==================== 静态工厂方法 ====================
@@ -90,14 +118,42 @@ public class UpgradeResult {
      */
     public static UpgradeResult success(@NotNull MMOItem upgradedItem, int previousLevel,
                                         int newLevel, int consumedStones) {
+        return success(upgradedItem, previousLevel, newLevel, consumedStones, 0, false);
+    }
+
+    /**
+     * 创建成功结果（含辅料和保底信息）
+     *
+     * @param upgradedItem        升级后的物品
+     * @param previousLevel       升级前的等级
+     * @param newLevel            升级后的等级
+     * @param consumedStones      消耗的强化石数量
+     * @param directUpBonusLevels 直达石额外升级等级数
+     * @param guaranteeTriggered  是否触发保底
+     * @return 成功结果实例
+     */
+    public static UpgradeResult success(@NotNull MMOItem upgradedItem, int previousLevel,
+                                        int newLevel, int consumedStones,
+                                        int directUpBonusLevels, boolean guaranteeTriggered) {
+        StringBuilder msg = new StringBuilder("强化成功");
+        if (guaranteeTriggered) {
+            msg.append("（保底触发）");
+        }
+        if (directUpBonusLevels > 0) {
+            msg.append("，直达石额外升级 ").append(directUpBonusLevels).append(" 级");
+        }
+
         return new UpgradeResult(
                 Status.SUCCESS,
                 upgradedItem,
                 PenaltyResult.NONE,
-                "强化成功",
+                msg.toString(),
                 previousLevel,
                 newLevel,
-                consumedStones
+                consumedStones,
+                directUpBonusLevels,
+                guaranteeTriggered,
+                PenaltyResult.NONE
         );
     }
 
@@ -115,7 +171,10 @@ public class UpgradeResult {
                 "强化成功",
                 -1,
                 -1,
-                1
+                1,
+                0,
+                false,
+                PenaltyResult.NONE
         );
     }
 
@@ -136,7 +195,32 @@ public class UpgradeResult {
                 "强化失败，但物品受到防护模式保护",
                 -1,
                 -1,
-                consumedStones
+                consumedStones,
+                0,
+                false,
+                PenaltyResult.NONE
+        );
+    }
+
+    /**
+     * 创建“保护物品拦截惩罚”的失败结果（可区分拦截类型）
+     *
+     * @param consumedStones      消耗的强化石数量
+     * @param interceptedPenalty  被拦截的惩罚类型（BREAK/DOWNGRADE/DESTROY）
+     * @return 失败结果实例
+     */
+    public static UpgradeResult failureProtected(int consumedStones, @NotNull PenaltyResult interceptedPenalty) {
+        return new UpgradeResult(
+                Status.FAILURE_PROTECTED,
+                null,
+                PenaltyResult.PROTECTED,
+                "强化失败，但保护物品拦截了惩罚",
+                -1,
+                -1,
+                consumedStones,
+                0,
+                false,
+                interceptedPenalty
         );
     }
 
@@ -188,7 +272,10 @@ public class UpgradeResult {
                 message,
                 previousLevel,
                 newLevel,
-                consumedStones
+                consumedStones,
+                0,
+                false,
+                PenaltyResult.NONE
         );
     }
 
@@ -216,7 +303,10 @@ public class UpgradeResult {
                 "强化失败",
                 -1,
                 -1,
-                consumedStones
+                consumedStones,
+                0,
+                false,
+                PenaltyResult.NONE
         );
     }
 
@@ -243,7 +333,10 @@ public class UpgradeResult {
                 message,
                 -1,
                 -1,
-                0
+                0,
+                0,
+                false,
+                PenaltyResult.NONE
         );
     }
 
@@ -371,6 +464,53 @@ public class UpgradeResult {
         return consumedStones;
     }
 
+    /**
+     * 获取“被保护拦截的惩罚类型”
+     * <p>
+     * 当结果为 FAILURE_PROTECTED 或 {@link #getPenaltyResult()} 为 PROTECTED 时返回 BREAK/DOWNGRADE/DESTROY；
+     * 其他情况返回 NONE。
+     * </p>
+     */
+    @NotNull
+    public PenaltyResult getInterceptedPenalty() {
+        return interceptedPenalty != null ? interceptedPenalty : PenaltyResult.NONE;
+    }
+
+    // ===== 新增 Getter：辅料和保底相关 =====
+
+    /**
+     * 获取直达石额外升级的等级数
+     * <p>
+     * 当直达石效果触发时，会额外升级若干等级
+     * </p>
+     *
+     * @return 额外升级等级数，0 表示未触发
+     */
+    public int getDirectUpBonusLevels() {
+        return directUpBonusLevels;
+    }
+
+    /**
+     * 检查是否有直达石额外升级
+     *
+     * @return 如果有额外升级返回 true
+     */
+    public boolean hasDirectUpBonus() {
+        return directUpBonusLevels > 0;
+    }
+
+    /**
+     * 检查是否触发了保底机制
+     * <p>
+     * 保底机制触发时，强化必定成功
+     * </p>
+     *
+     * @return 如果触发保底返回 true
+     */
+    public boolean isGuaranteeTriggered() {
+        return guaranteeTriggered;
+    }
+
     @Override
     public String toString() {
         return "UpgradeResult{" +
@@ -380,6 +520,8 @@ public class UpgradeResult {
                 ", previousLevel=" + previousLevel +
                 ", newLevel=" + newLevel +
                 ", consumedStones=" + consumedStones +
+                ", directUpBonusLevels=" + directUpBonusLevels +
+                ", guaranteeTriggered=" + guaranteeTriggered +
                 '}';
     }
 }

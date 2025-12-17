@@ -4,14 +4,13 @@ import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.comp.flags.CustomFlag;
-import io.lumine.mythic.lib.damage.AttackMetadata;
+import io.lumine.mythic.lib.damage.DamageType;
+import io.lumine.mythic.lib.damage.MeleeAttackMetadata;
 import io.lumine.mythic.lib.player.PlayerMetadata;
 import io.lumine.mythic.lib.skill.SimpleSkill;
 import io.lumine.mythic.lib.skill.SkillMetadata;
 import io.lumine.mythic.lib.skill.handler.SkillHandler;
 import io.lumine.mythic.lib.skill.result.SkillResult;
-import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
-import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import net.Indyuce.mmoitems.ItemStats;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
@@ -23,14 +22,22 @@ import net.Indyuce.mmoitems.api.interaction.weapon.untargeted.LegacyWeapon;
 import net.Indyuce.mmoitems.api.player.PlayerData;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.stat.ActionLeftClick;
+import net.Indyuce.mmoitems.combat.CombatContext;
+import net.Indyuce.mmoitems.combat.CombatModifierPipeline;
+import net.Indyuce.mmoitems.combat.modifier.DistanceBonusModifier;
+import net.Indyuce.mmoitems.combat.modifier.FlatReductionModifier;
+import net.Indyuce.mmoitems.combat.modifier.PercentReductionModifier;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
 
 public class Weapon extends UseItem {
     @Deprecated
@@ -120,15 +127,24 @@ public class Weapon extends UseItem {
      * @param target     The attack target
      * @return If the attack is successful, or if it was canceled otherwise
      */
-    public boolean handleTargetedAttack(AttackMetadata attackMeta, @NotNull PlayerMetadata attacker, LivingEntity target) {
+    public boolean handleTargetedAttack(@NotNull MeleeAttackMetadata attackMeta,
+                                        @NotNull PlayerMetadata attacker,
+                                        @NotNull LivingEntity target,
+                                        @NotNull Event sourceEvent) {
 
         // Handle weapon mana and stamina costs ONLY
         if (!checkAndApplyWeaponCosts()) return false;
 
+        // 设置该物品类型的近战攻击伤害类型
+        attackMeta.getDamage().getInitialPacket().setTypes(mmoitem.getType().getAttackDamageTypes().toArray(new DamageType[0]));
+
         // Handle on-hit attack effects
         final SkillHandler onHitSkill = mmoitem.getType().onAttack();
         if (onHitSkill != null && !getNBTItem().getBoolean("MMOITEMS_DISABLE_ATTACK_PASSIVE"))
-            new SimpleSkill(onHitSkill).cast(new TriggerMetadata(attacker, TriggerType.API, target, attackMeta));
+            new SimpleSkill(onHitSkill).cast(SkillMetadata.of(attacker, target, attackMeta, sourceEvent));
+
+        // 统一战斗修正：固定减伤 -> 百分比减伤 -> 距离加成
+        applyCombatModifiers(attackMeta, target);
 
         return true;
     }
@@ -171,7 +187,7 @@ public class Weapon extends UseItem {
         if (handler == null) return WeaponAttackResult.NO_ATTACK;
 
         // Check for attack effect conditions
-        final SkillMetadata meta = new TriggerMetadata(getPlayerData().getMMOPlayerData(), TriggerType.API, actionHand, null, null, null, null, null).toSkillMetadata(new SimpleSkill(handler));
+        final SkillMetadata meta = SkillMetadata.of(getPlayerData().getMMOPlayerData(), actionHand);
         final SkillResult result = handler.getResult(meta);
         if (!result.isSuccessful()) return WeaponAttackResult.NO_ATTACK;
 
@@ -188,7 +204,21 @@ public class Weapon extends UseItem {
         if (called.isCancelled()) return WeaponAttackResult.BUKKIT_EVENT;
 
         // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, getNBTItem(), actionHand.toBukkit());
+        final boolean boundNow = net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, getNBTItem(), actionHand.toBukkit());
+
+        /*
+         * 关键修复：自动绑定会重建并写回手持物品；而 DurabilityItem 是在绑定之前创建的，
+         * 若后续 updateInInventory 使用旧引用，会把“未绑定”的旧物品覆盖回去，从而导致反复提示已绑定。
+         * 因此：当本次确实发生了绑定时，重新基于当前手持物品构建 DurabilityItem。
+         */
+        if (boundNow && durItem != null) {
+            try {
+                final org.bukkit.inventory.ItemStack currentInHand = getPlayer().getInventory().getItem(actionHand.toBukkit());
+                durItem = DurabilityItem.from(getPlayer(), currentInHand, actionHand.toBukkit());
+            } catch (Throwable ignored) {
+                // 兼容性保护：不因耐久更新器重建失败影响技能释放
+            }
+        }
 
         // Attack is ready to be performed.
         // Apply weapon costs
@@ -201,6 +231,16 @@ public class Weapon extends UseItem {
         // Apply durability loss
         if (durItem != null) durItem.decreaseDurability(1).updateInInventory();
         return WeaponAttackResult.SUCCESS;
+    }
+
+    @Deprecated
+    public boolean handleTargetedAttack(MeleeAttackMetadata attackMeta, PlayerMetadata attacker, LivingEntity target) {
+        return this.handleTargetedAttack(attackMeta, attacker, target, null);
+    }
+
+    @Deprecated
+    public boolean handleTargetedAttack(io.lumine.mythic.lib.damage.AttackMetadata attackMeta, PlayerMetadata attacker, LivingEntity target) {
+        return this.handleTargetedAttack((MeleeAttackMetadata) attackMeta, attacker, target, null);
     }
 
     @Deprecated
@@ -249,5 +289,27 @@ public class Weapon extends UseItem {
      */
     protected double requireNonZero(double number, double elseNumber) {
         return number <= 0 ? elseNumber : number;
+    }
+
+    /**
+     * 使用 CombatModifier 管线对伤害进行额外修正。
+     */
+    private void applyCombatModifiers(@NotNull MeleeAttackMetadata attackMeta, @NotNull LivingEntity target) {
+        double base = attackMeta.getDamage().getDamage();
+        if (base <= 0D) {
+            return;
+        }
+        CombatModifierPipeline pipeline = new CombatModifierPipeline();
+        pipeline.register(new FlatReductionModifier());
+        pipeline.register(new PercentReductionModifier());
+        pipeline.register(new DistanceBonusModifier());
+
+        CombatContext ctx = new CombatContext(playerData.getPlayer(), target, attackMeta,
+                MythicLib.plugin.getVersion().getWrapper().getNBTItem(playerData.getPlayer().getInventory().getItem(attackMeta.getHand().toBukkit())),
+                playerData);
+        double finalDamage = pipeline.applyAll(ctx, base);
+        if (finalDamage != base) {
+            attackMeta.getDamage().multiplicativeModifier(finalDamage / base);
+        }
     }
 }

@@ -8,9 +8,14 @@ import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.UpgradeTemplate;
 import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
 import net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem;
+import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeData;
+import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeManager;
+import net.Indyuce.mmoitems.api.upgrade.limit.DailyLimitManager;
 import net.Indyuce.mmoitems.api.util.message.Message;
+import net.Indyuce.mmoitems.stat.data.SoulboundData;
 import net.Indyuce.mmoitems.stat.data.UpgradeData;
 import net.Indyuce.mmoitems.util.MMOUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -21,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * 强化服务核心类
@@ -71,6 +77,16 @@ public class UpgradeService {
         MMOItem targetMMO = context.getTargetItem();
         UpgradeData targetData = context.getTargetData();
 
+        // ========== 0. 每日限制检查（新增） ==========
+        DailyLimitManager dailyLimitManager = MMOItems.plugin.getUpgrades().getDailyLimitManager();
+        if (dailyLimitManager != null && dailyLimitManager.isEnabled()) {
+            if (!dailyLimitManager.canUpgrade(player)) {
+                int used = dailyLimitManager.getUsedAttempts(player);
+                int max = dailyLimitManager.getMaxAttempts(player);
+                return UpgradeResult.error("今日强化次数已用尽 (" + used + "/" + max + ")");
+            }
+        }
+
         // 1. 验证强化模板
         UpgradeTemplate template = targetData.getTemplate();
         if (template == null) {
@@ -112,8 +128,28 @@ public class UpgradeService {
             }
         }
 
-        // 5. 计算实际成功率
+        // 5. 计算实际成功率（含辅料加成）
         double actualSuccess = calculateActualSuccess(consumableData, targetData, context.getChanceModifier());
+        // 应用辅料成功率加成（累乘口径：actualSuccess = actualSuccess * (1 + bonus/100) ...）
+        if (context.getAuxiliaryChanceBonus() > 0) {
+            actualSuccess *= 1.0 + (context.getAuxiliaryChanceBonus() / 100.0);
+        }
+
+        // ========== 5.5 保底机制检查（新增） ==========
+        GuaranteeManager guaranteeManager = MMOItems.plugin.getUpgrades().getGuaranteeManager();
+        boolean guaranteeTriggered = false;
+        if (guaranteeManager != null && guaranteeManager.isEnabled()) {
+            if (guaranteeManager.isGuaranteed(context.getTargetItemStack())) {
+                actualSuccess = 1.0;
+                guaranteeTriggered = true;
+                // 发送保底触发消息
+                Message.UPGRADE_GUARANTEE_TRIGGERED.format(ChatColor.GOLD).send(player);
+                player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2f);
+            }
+        }
+
+        // 确保成功率在合理范围内
+        actualSuccess = Math.min(1.0, Math.max(0, actualSuccess));
 
         // 6. 保存原始等级
         int originalLevel = targetData.getLevel();
@@ -121,9 +157,24 @@ public class UpgradeService {
         // 7. 判定成功或失败
         boolean success = RANDOM.nextDouble() <= actualSuccess;
 
+        // ========== 8. 记录每日次数（新增） ==========
+        if (dailyLimitManager != null && dailyLimitManager.isEnabled()) {
+            dailyLimitManager.recordAttempt(player);
+        }
+
         if (success) {
-            return handleUpgradeSuccess(context, targetMMO, targetData, template, upgradeStones, originalLevel);
+            // 成功时重置保底计数
+            if (guaranteeManager != null && guaranteeManager.isEnabled() && context.getTargetItemStack() != null) {
+                NBTItem nbtItem = NBTItem.get(context.getTargetItemStack());
+                guaranteeManager.recordSuccess(nbtItem);
+            }
+            return handleUpgradeSuccess(context, targetMMO, targetData, template, upgradeStones, originalLevel, guaranteeTriggered);
         } else {
+            // 失败时增加保底计数
+            if (guaranteeManager != null && guaranteeManager.isEnabled() && context.getTargetItemStack() != null) {
+                NBTItem nbtItem = NBTItem.get(context.getTargetItemStack());
+                guaranteeManager.recordFail(nbtItem);
+            }
             return handleUpgradeFailure(context, player, targetMMO, targetData, upgradeStones, originalLevel);
         }
     }
@@ -216,6 +267,15 @@ public class UpgradeService {
 
     /**
      * 处理强化成功
+     *
+     * @param context            强化上下文
+     * @param targetMMO          目标 MMOItem
+     * @param targetData         目标强化数据
+     * @param template           强化模板
+     * @param upgradeStones      强化石列表
+     * @param originalLevel      原始等级
+     * @param guaranteeTriggered 是否触发了保底
+     * @return 强化结果
      */
     @NotNull
     private static UpgradeResult handleUpgradeSuccess(@NotNull UpgradeContext context,
@@ -223,7 +283,10 @@ public class UpgradeService {
                                                        @NotNull UpgradeData targetData,
                                                        @NotNull UpgradeTemplate template,
                                                        @NotNull List<ItemStack> upgradeStones,
-                                                       int originalLevel) {
+                                                       int originalLevel,
+                                                       boolean guaranteeTriggered) {
+        Player player = context.getPlayer();
+
         // 消耗强化石
         int consumedStones = 0;
         if (!context.isFreeMode()) {
@@ -233,6 +296,8 @@ public class UpgradeService {
 
         // 执行升级
         int newLevel;
+        int directUpBonusLevels = 0;
+
         if (context.isDirectMode()) {
             // 直达模式：直接到目标等级
             int targetLevel = context.getDirectLevel();
@@ -246,13 +311,49 @@ public class UpgradeService {
             // 普通模式：+1
             template.upgrade(targetMMO);
             newLevel = originalLevel + 1;
+
+            // ========== 直达石跳级效果（新增） ==========
+            if (context.getAuxiliaryDirectUpChance() > 0 && context.getAuxiliaryDirectUpLevels() > 0) {
+                double directUpChance = context.getAuxiliaryDirectUpChance() / 100.0;
+                if (RANDOM.nextDouble() <= directUpChance) {
+                    directUpBonusLevels = context.getAuxiliaryDirectUpLevels();
+                    int bonusTarget = newLevel + directUpBonusLevels;
+                    // 检查上限
+                    if (!context.isForceMode() && targetData.getMax() > 0 && bonusTarget > targetData.getMax()) {
+                        bonusTarget = targetData.getMax();
+                        directUpBonusLevels = bonusTarget - newLevel;
+                    }
+                    if (directUpBonusLevels > 0) {
+                        template.upgradeTo(targetMMO, bonusTarget);
+                        newLevel = bonusTarget;
+                        // 发送直达石生效消息
+                        Message.UPGRADE_DIRECT_UP_TRIGGERED.format(ChatColor.LIGHT_PURPLE, "#levels#",
+                                String.valueOf(directUpBonusLevels)).send(player);
+                        player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2.5f);
+                    }
+                }
+            }
         }
 
-        return UpgradeResult.success(targetMMO, originalLevel, newLevel, consumedStones);
+        // ========== 全服通报（新增） ==========
+        broadcastUpgradeIfNeeded(player, targetMMO, newLevel);
+
+        // ========== 强化后自动绑定（新增） ==========
+        applyAutoBindOnUpgradeIfNeeded(player, targetMMO);
+
+        return UpgradeResult.success(targetMMO, originalLevel, newLevel, consumedStones, directUpBonusLevels, guaranteeTriggered);
     }
 
     /**
      * 处理强化失败
+     *
+     * @param context       强化上下文
+     * @param player        玩家
+     * @param targetMMO     目标 MMOItem
+     * @param targetData    目标强化数据
+     * @param upgradeStones 强化石列表
+     * @param originalLevel 原始等级
+     * @return 强化结果
      */
     @NotNull
     private static UpgradeResult handleUpgradeFailure(@NotNull UpgradeContext context,
@@ -273,11 +374,18 @@ public class UpgradeService {
             return UpgradeResult.failureProtected(consumedStones);
         }
 
-        // 执行惩罚判定
-        PenaltyResult penalty = applyPenalty(player, targetMMO, targetData, context.getTargetItemStack(), originalLevel);
+        // 执行惩罚判定（含辅料保护）
+        double protectionReduction = context.getAuxiliaryProtection() / 100.0;
+        PenaltyApplicationResult penaltyResult = applyPenaltyDetailed(player, targetMMO, targetData, context.getTargetItemStack(),
+                originalLevel, protectionReduction);
 
+        PenaltyResult penalty = penaltyResult.getResult();
         if (penalty == PenaltyResult.NONE) {
             return UpgradeResult.failureNoPenalty(consumedStones);
+        }
+
+        if (penalty == PenaltyResult.PROTECTED) {
+            return UpgradeResult.failureProtected(consumedStones, penaltyResult.getInterceptedPenalty());
         }
 
         int newLevel = originalLevel;
@@ -308,7 +416,7 @@ public class UpgradeService {
     }
 
     /**
-     * 应用强化失败的惩罚
+     * 应用强化失败的惩罚（无辅料保护）
      * <p>
      * 惩罚优先级：碎裂 → 掉级 → 销毁
      * </p>
@@ -326,19 +434,67 @@ public class UpgradeService {
                                              @NotNull UpgradeData targetData,
                                              @Nullable ItemStack targetItemStack,
                                              int originalLevel) {
+        return applyPenaltyDetailed(player, targetMMO, targetData, targetItemStack, originalLevel, 0).getResult();
+    }
+
+    /**
+     * 应用强化失败的惩罚（含辅料保护）
+     * <p>
+     * 惩罚优先级：碎裂 → 掉级 → 销毁
+     * </p>
+     * <p>
+     * 辅料保护会按比例降低惩罚触发概率：
+     * <code>实际惩罚概率 = 原始惩罚概率 × (1 - 辅料保护)</code>
+     * </p>
+     *
+     * @param player              玩家
+     * @param targetMMO           目标物品
+     * @param targetData          目标强化数据
+     * @param targetItemStack     目标 ItemStack（用于修改物品，可为 null）
+     * @param originalLevel       强化前的等级
+     * @param protectionReduction 辅料保护降低比例（0-1）
+     * @return 惩罚结果
+     */
+    @NotNull
+    public static PenaltyResult applyPenalty(@NotNull Player player,
+                                             @NotNull MMOItem targetMMO,
+                                             @NotNull UpgradeData targetData,
+                                             @Nullable ItemStack targetItemStack,
+                                             int originalLevel,
+                                             double protectionReduction) {
+        return applyPenaltyDetailed(player, targetMMO, targetData, targetItemStack, originalLevel, protectionReduction).getResult();
+    }
+
+    /**
+     * 应用强化失败的惩罚（含拦截类型信息）
+     * <p>
+     * 惩罚优先级：碎裂 → 掉级 → 销毁
+     * </p>
+     */
+    @NotNull
+    public static PenaltyApplicationResult applyPenaltyDetailed(@NotNull Player player,
+                                                                @NotNull MMOItem targetMMO,
+                                                                @NotNull UpgradeData targetData,
+                                                                @Nullable ItemStack targetItemStack,
+                                                                int originalLevel,
+                                                                double protectionReduction) {
 
         String itemName = targetMMO.hasData(ItemStats.NAME)
                 ? targetMMO.getData(ItemStats.NAME).toString()
                 : "物品";
 
+        // 辅料保护系数（降低惩罚触发概率）
+        double protectionMultiplier = Math.max(0, 1.0 - protectionReduction);
+
         // 优先级1：碎裂判定
         if (targetData.isInBreakRange(originalLevel) && targetData.getBreakChance() > 0) {
-            if (RANDOM.nextDouble() < targetData.getBreakChance()) {
+            double actualBreakChance = targetData.getBreakChance() * protectionMultiplier;
+            if (RANDOM.nextDouble() < actualBreakChance) {
                 // 触发碎裂，检查保护
                 if (tryConsumeProtection(player, targetData.getBreakProtectKey())) {
                     Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
                     player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
-                    return PenaltyResult.PROTECTED;
+                    return PenaltyApplicationResult.protectedIntercept(PenaltyResult.BREAK);
                 } else {
                     // 执行碎裂
                     if (targetItemStack != null) {
@@ -346,19 +502,20 @@ public class UpgradeService {
                     }
                     Message.UPGRADE_FAIL_BREAK.format(ChatColor.RED, "#item#", itemName).send(player);
                     player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 0.5f);
-                    return PenaltyResult.BREAK;
+                    return PenaltyApplicationResult.of(PenaltyResult.BREAK);
                 }
             }
         }
 
         // 优先级2：掉级判定
         if (targetData.isInDowngradeRange(originalLevel) && targetData.getDowngradeChance() > 0) {
-            if (RANDOM.nextDouble() < targetData.getDowngradeChance()) {
+            double actualDowngradeChance = targetData.getDowngradeChance() * protectionMultiplier;
+            if (RANDOM.nextDouble() < actualDowngradeChance) {
                 // 触发掉级，检查保护
                 if (tryConsumeProtection(player, targetData.getDowngradeProtectKey())) {
                     Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
                     player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
-                    return PenaltyResult.PROTECTED;
+                    return PenaltyApplicationResult.protectedIntercept(PenaltyResult.DOWNGRADE);
                 } else {
                     // 执行掉级
                     int downgradeAmount = targetData.getDowngradeAmount();
@@ -378,29 +535,36 @@ public class UpgradeService {
                         Message.UPGRADE_FAIL_DOWNGRADE.format(ChatColor.RED, "#item#", itemName,
                                 "#amount#", String.valueOf(actualDowngrade)).send(player);
                         player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1.5f);
-                        return PenaltyResult.DOWNGRADE;
+                        return PenaltyApplicationResult.of(PenaltyResult.DOWNGRADE);
                     } else {
                         // 已经在最低等级，无法掉级，但掉级判定已触发，不再继续判定其他惩罚
                         Message.UPGRADE_CMD_FAIL_NO_PENALTY.format(ChatColor.RED).send(player);
                         player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1.5f);
-                        return PenaltyResult.NONE;
+                        return PenaltyApplicationResult.of(PenaltyResult.NONE);
                     }
                 }
             }
         }
 
-        // 优先级3：销毁判定
+        // 优先级3：销毁判定（允许 destroy-protect-key 拦截）
         if (targetData.destroysOnFail()) {
+            String destroyProtectKey = targetData.getDestroyProtectKey();
+            if (destroyProtectKey != null && !destroyProtectKey.isEmpty() && tryConsumeProtection(player, destroyProtectKey)) {
+                Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+                player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+                return PenaltyApplicationResult.protectedIntercept(PenaltyResult.DESTROY);
+            }
+
             if (targetItemStack != null) {
                 targetItemStack.setAmount(0);
             }
             Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
             player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
-            return PenaltyResult.DESTROY;
+            return PenaltyApplicationResult.of(PenaltyResult.DESTROY);
         }
 
         // 无惩罚
-        return PenaltyResult.NONE;
+        return PenaltyApplicationResult.of(PenaltyResult.NONE);
     }
 
     /**
@@ -435,12 +599,112 @@ public class UpgradeService {
      * 用于命令模式下更新主手物品
      * </p>
      *
-     * @param player       玩家
-     * @param upgradedMMO  升级后的 MMOItem
+     * @param player      玩家
+     * @param upgradedMMO 升级后的 MMOItem
      */
     public static void updateMainHandItem(@NotNull Player player, @NotNull MMOItem upgradedMMO) {
         NBTItem result = upgradedMMO.newBuilder().buildNBT();
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         mainHand.setItemMeta(result.toItem().getItemMeta());
+    }
+
+    /**
+     * 如果满足条件，广播强化成功消息
+     * <p>
+     * 根据配置的广播等级列表，当物品达到指定等级时全服通报
+     * </p>
+     *
+     * @param player    玩家
+     * @param targetMMO 目标物品
+     * @param newLevel  新等级
+     */
+    private static void broadcastUpgradeIfNeeded(@NotNull Player player, @NotNull MMOItem targetMMO, int newLevel) {
+        // 检查广播配置
+        if (!MMOItems.plugin.getConfig().getBoolean("item-upgrading.broadcast.enabled", false)) {
+            return;
+        }
+
+        // 获取配置的广播等级列表
+        List<?> broadcastLevels = MMOItems.plugin.getConfig().getList("item-upgrading.broadcast.levels");
+        if (broadcastLevels == null || broadcastLevels.isEmpty()) {
+            return;
+        }
+
+        // 检查当前等级是否在广播列表中
+        boolean shouldBroadcast = false;
+        for (Object levelObj : broadcastLevels) {
+            if (levelObj instanceof Number) {
+                if (((Number) levelObj).intValue() == newLevel) {
+                    shouldBroadcast = true;
+                    break;
+                }
+            }
+        }
+
+        if (!shouldBroadcast) {
+            return;
+        }
+
+        // 获取物品名称
+        String itemName = targetMMO.hasData(ItemStats.NAME)
+                ? targetMMO.getData(ItemStats.NAME).toString()
+                : targetMMO.getType().getName();
+
+        // 获取广播消息格式
+        String message = MMOItems.plugin.getConfig().getString("item-upgrading.broadcast.message",
+                "&6[强化通报] &a{player} 的 &e{item}&a 强化到 &c+{level}&a 级！");
+
+        // 替换占位符
+        message = message.replace("{player}", player.getName())
+                .replace("{item}", itemName)
+                .replace("{level}", String.valueOf(newLevel));
+
+        // 转换颜色代码
+        message = ChatColor.translateAlternateColorCodes('&', message);
+
+        // 广播消息
+        String finalMessage = message;
+        Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(finalMessage));
+        Bukkit.getConsoleSender().sendMessage(finalMessage);
+    }
+
+    /**
+     * 强化成功后自动绑定物品给强化者
+     * <p>
+     * 根据配置 `item-upgrading.auto-bind-on-upgrade.enabled` 决定是否执行。
+     * 如果物品已经绑定则跳过。
+     * </p>
+     *
+     * @param player    强化者
+     * @param targetMMO 目标物品
+     */
+    private static void applyAutoBindOnUpgradeIfNeeded(@NotNull Player player, @NotNull MMOItem targetMMO) {
+        // 检查配置是否启用
+        if (!MMOItems.plugin.getConfig().getBoolean("item-upgrading.auto-bind-on-upgrade.enabled", false)) {
+            return;
+        }
+
+        // 检查物品是否已经绑定
+        if (targetMMO.hasData(ItemStats.SOULBOUND)) {
+            return;
+        }
+
+        // 获取配置的绑定等级
+        int bindLevel = MMOItems.plugin.getConfig().getInt("item-upgrading.auto-bind-on-upgrade.level", 1);
+        bindLevel = Math.max(1, Math.min(7, bindLevel)); // 限制在 1-7 范围内
+
+        // 执行绑定
+        targetMMO.setData(ItemStats.SOULBOUND, new SoulboundData(player.getUniqueId(), player.getName(), bindLevel));
+
+        // 是否显示消息
+        boolean showMessage = MMOItems.plugin.getConfig().getBoolean("item-upgrading.auto-bind-on-upgrade.show-message", true);
+        if (showMessage) {
+            String itemName = targetMMO.hasData(ItemStats.NAME)
+                    ? targetMMO.getData(ItemStats.NAME).toString()
+                    : targetMMO.getType().getName();
+            Message.UPGRADE_AUTO_BIND.format(ChatColor.YELLOW, "#item#", itemName,
+                    "#level#", MMOUtils.intToRoman(bindLevel)).send(player);
+            player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2f);
+        }
     }
 }

@@ -1,0 +1,370 @@
+# ========================================
+#       强化工作台 GUI 配置
+# ========================================
+
+# GUI 基本设置
+gui:
+  # 标题（支持颜色代码）
+  title: "&5&l强化工作台 &8- &7放入物品开始强化"
+  # 行数（必须是 1-6）
+  rows: 6
+
+# 布局（可选）：使用列表+slot/slots 指定 items.* 的摆放位置。存在此段时将覆盖默认布局。
+# - key: 绑定到 items.<key>，用于摆放“静态展示物品”（装饰/标题/标签/按钮外观等）
+# - bind: 绑定到“功能槽位”（可交互槽/系统槽），仅用于告诉插件该槽位的功能，不会自动放展示物品
+# - slot: 单个槽位（0-53），slots: 槽位列表
+# - hide: true 可隐藏该条目（等价于不生效）；items.<key>.material 也可写 AIR 来清空
+layout:
+  # [key] border：边框装饰（示例为第一行）
+  - key: border
+    slots: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  # [key] title：标题物品（纯展示）
+  - key: title
+    slot: 4
+  # [key] separator：分隔线装饰（示例为第3行）
+  - key: separator
+    slots: [18, 19, 20, 21, 22, 23, 24, 25, 26]
+  # [key] target-label：目标物品槽旁的“标签物品”（纯展示）
+  - key: target-label
+    slots: [10, 20]
+  # [key] upgrade-stone-label：强化石槽旁的“标签物品”（纯展示）
+  - key: upgrade-stone-label
+    slots: [14, 24]
+  # [key] lucky-stone-label：幸运石槽旁的“标签物品”（纯展示）
+  - key: lucky-stone-label
+    slot: 36
+  # [key] protect-stone-label：保护石槽旁的“标签物品”（纯展示）
+  - key: protect-stone-label
+    slot: 38
+  # [key] direct-stone-label：直达石槽旁的“标签物品”（纯展示）
+  - key: direct-stone-label
+    slot: 40
+  # [key] close-button：关闭按钮外观（纯展示；真正功能槽位见 bind: close-button）
+  - key: close-button
+    slot: 45
+  # ==========================
+  # 功能槽位绑定（无展示物品，仅定义功能槽）
+  # ==========================
+  # [bind] target-item：待强化物品放置槽（玩家放入目标装备）
+  - bind: target-item
+    slot: 11
+  # [bind] upgrade-stone：强化石放置槽（玩家放入强化石）
+  - bind: upgrade-stone
+    slot: 15
+  # [bind] preview：预览显示槽（预览/箭头/无效提示等）
+  - bind: preview
+    slot: 13
+  # [bind] lucky-stone：幸运石放置槽（辅料：成功率加成）
+  - bind: lucky-stone
+    slot: 37
+  # [bind] protect-stone：保护石放置槽（辅料：惩罚概率降低）
+  - bind: protect-stone
+    slot: 39
+  # [bind] direct-stone：直达石放置槽（辅料：成功后跳级概率）
+  - bind: direct-stone
+    slot: 41
+  # [bind] upgrade-button：强化按钮槽（玩家点击执行强化）
+  - bind: upgrade-button
+    slot: 43
+  # [bind] info-panel：信息面板槽（显示每日次数/风险/说明等）
+  - bind: info-panel
+    slot: 49
+  # [bind] close-button：关闭按钮槽（玩家点击关闭并返还物品）
+  - bind: close-button
+    slot: 45
+  # [bind] progress-bar：进度条槽列（slots 长度=进度条长度；首个槽=起点）
+  - bind: progress-bar
+    slots: [28, 29, 30, 31, 32, 33, 34]
+
+# 物品显示配置
+items:
+  # 标题物品
+  title:
+    material: ANVIL
+    name: "&5&l✦ 强化工作台 ✦"
+    lore:
+      - "&7"
+      - "&7将装备和强化石放入对应槽位"
+      - "&7查看成功率后点击强化按钮"
+      - "&7"
+      - "&e辅料石可提升强化效果"
+
+  # 槽位标签
+  target-label:
+    material: DIAMOND_SWORD
+    name: "&6&l装备槽"
+    lore:
+      - "&7放入待强化的装备"
+
+  upgrade-stone-label:
+    material: EMERALD
+    name: "&a&l强化石槽"
+    lore:
+      - "&7放入对应的强化石"
+
+  lucky-stone-label:
+    material: LIME_DYE
+    name: "&a幸运石"
+    lore:
+      - "&7+成功率"
+      - "&7(可选)"
+
+  protect-stone-label:
+    material: LIGHT_BLUE_DYE
+    name: "&b保护石"
+    lore:
+      - "&7-惩罚概率"
+      - "&7(可选)"
+
+  direct-stone-label:
+    material: PURPLE_DYE
+    name: "&d直达石"
+    lore:
+      - "&7跳级概率"
+      - "&7(可选)"
+
+  # 关闭按钮
+  close-button:
+    material: BARRIER
+    name: "&c&l关闭"
+    lore:
+      - "&7点击关闭工作台"
+      - "&7物品将返还背包"
+
+  # 强化按钮 - 可用状态
+  upgrade-button-enabled:
+    material: LIME_CONCRETE
+    name: "&a&l✦ 点击强化 ✦"
+    lore:
+      - "&7"
+      - "&a▶ 点击执行强化"
+      - "&7"
+      - "&e提示: 强化有风险，请谨慎操作"
+
+  # 强化按钮 - 禁用状态
+  upgrade-button-disabled:
+    material: RED_CONCRETE
+    name: "&c&l✦ 无法强化 ✦"
+    lore:
+      - "&7"
+      - "&c请检查物品和强化石"
+
+  # 强化按钮 - 冷却中
+  upgrade-button-cooldown:
+    material: GRAY_CONCRETE
+    name: "&7&l请稍候..."
+    lore:
+      - "&7正在处理中"
+
+  # 预览箭头 - 等待物品
+  preview-waiting:
+    material: ARROW
+    name: "&f&l→ 强化 →"
+    lore:
+      - "&7放入物品后查看预览"
+
+  # 预览 - 无效物品
+  preview-invalid:
+    material: BARRIER
+    name: "&c无效物品"
+    lore:
+      - "&7该物品不能强化"
+
+  # 预览 - 已满级
+  preview-max-level:
+    material: STRUCTURE_VOID
+    name: "&6&l已达最大等级"
+
+  # 预览 - 正常
+  preview-normal:
+    material: NETHER_STAR
+    name: "&e&l强化预览"
+
+  # 进度条标签
+  progress-label:
+    material: EXPERIENCE_BOTTLE
+
+  # 信息面板
+  info-panel:
+    material: BOOK
+    name: "&e&l强化信息"
+
+  # 填充物品
+  filler:
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+
+  # 边框装饰
+  border:
+    material: PURPLE_STAINED_GLASS_PANE
+    name: " "
+
+  # 分隔线
+  separator:
+    material: GRAY_STAINED_GLASS_PANE
+    name: " "
+
+# 进度条颜色配置
+progress-bar:
+  # 高成功率 (>=80%)
+  high:
+    material: LIME_STAINED_GLASS_PANE
+    color: "&a"
+  # 中等成功率 (>=50%)
+  medium:
+    material: YELLOW_STAINED_GLASS_PANE
+    color: "&e"
+  # 较低成功率 (>=30%)
+  low:
+    material: ORANGE_STAINED_GLASS_PANE
+    color: "&6"
+  # 危险成功率 (<30%)
+  danger:
+    material: RED_STAINED_GLASS_PANE
+    color: "&c"
+  # 未填充
+  empty:
+    material: WHITE_STAINED_GLASS_PANE
+    color: "&8"
+
+# 消息配置
+messages:
+  # 成功率显示格式
+  success-rate: "&7成功率: {color}{rate}%"
+  # 基础成功率
+  base-rate: "&7基础成功率: &f{rate}%"
+  # 衰减后
+  decayed-rate: "&7等级衰减后: &f{rate}%"
+  # 幸运石加成
+  lucky-bonus: "&a× 幸运石: &f×(1+{rate}%)"
+  # 保底进度
+  guarantee-progress: "&6保底进度: &f{current}/{max}"
+  # 保底触发
+  guarantee-triggered: "&6★ 已触发保底！必定成功 ★"
+  # 今日次数
+  daily-limit: "&e今日强化次数:"
+  daily-used: "  &7已用: &f{used}/{max}"
+  daily-remaining: "  &7剩余: {color}{remaining} 次"
+  # 失败风险标题
+  risk-title: "&c⚠ 失败风险:"
+  # 碎裂风险
+  risk-break: "  &c☠ 碎裂: {rate}%"
+  # 掉级风险
+  risk-downgrade: "  &e↓ 掉级: {rate}% (-{amount}级)"
+  # 销毁风险
+  risk-destroy: "  &c✖ 失败销毁物品"
+  # 无风险
+  risk-none: "  &a✓ 当前等级无惩罚"
+  # 保护石效果
+  protection-effect: "&b✦ 保护石效果:"
+  protection-value: "  &b惩罚概率 -{rate}%"
+  # 等级显示
+  current-level: "&e当前等级: &f+{level}"
+  after-level: "&a强化后: &f+{level}"
+  max-level: "&7最大等级: &f+{level}"
+  # 直达石效果
+  direct-effect: "&d✦ 直达石效果:"
+  direct-chance: "&d  {chance}% 概率直接到 +{level}"
+  # 物品名称
+  item-name: "&f物品: {name}"
+  # 预览相关
+  preview-title: "&e⚡ 强化预览 ⚡"
+  preview-original-item: "&f原物品: {name}"
+  preview-full-stats: "&7&o强化后完整属性:"
+  preview-separator: "&8─────────────────"
+  preview-fallback: "&8(无法生成完整预览)"
+  preview-max-reached: "&c已达到强化上限，无法继续强化"
+
+  # 强化过程提示（GUI）
+  item-state-invalid: "&c物品状态异常，请重新放入物品"
+  daily-limit-reached: "&c今日强化次数已用尽 ({used}/{max})"
+  template-not-found: "&c未找到强化模板: &f{template}"
+  upgrade-error: "&c强化失败: &f{reason}"
+  upgrade-fail-default: "强化失败"
+  upgrade-fail: "&c{reason}"
+  upgrade-fail-protected: "&a强化失败，但保护已生效：&f{reason}"
+  upgrade-fail-protected-break: "&a强化失败，保护已生效（拦截碎裂）：&f{reason}"
+  upgrade-fail-protected-downgrade: "&a强化失败，保护已生效（拦截掉级）：&f{reason}"
+  upgrade-fail-protected-destroy: "&a强化失败，保护已生效（拦截销毁）：&f{reason}"
+
+# 属性变化标记配置
+# 在预览物品的属性行末尾显示变化值
+change-marker:
+  # 是否启用变化标记
+  enabled: true
+  # 变化标记格式
+  # 占位符: {color} = 颜色代码, {sign} = 符号(+/-), {value} = 数值
+  format: " &8({color}{sign}{value}&8)"
+  # 正数（增益）颜色
+  positive-color: "&a"
+  # 负数（减益）颜色
+  negative-color: "&c"
+  # 小数位数（0=整数, 1=一位小数, 2=两位小数）
+  decimal-places: 1
+  # 最小变化阈值（低于此值不显示变化标记）
+  min-change: 0.01
+  # 无法强化原因
+  block-no-item: "&c• 请放入待强化物品"
+  block-not-mmoitem: "&c• 物品不是 MMOItems 物品"
+  block-not-upgradable: "&c• 物品不可强化"
+  block-max-level: "&c• 已达最大等级"
+  block-no-stone: "&c• 请放入强化石"
+  block-stone-mismatch: "&c• 强化石不匹配"
+
+# 音效配置
+sounds:
+  # 放入物品
+  item-place:
+    sound: BLOCK_NOTE_BLOCK_PLING
+    volume: 0.5
+    pitch: 1.2
+  # 强化成功
+  upgrade-success:
+    sound: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 1.5
+  # 强化失败
+  upgrade-fail:
+    sound: ENTITY_ITEM_BREAK
+    volume: 1.0
+    pitch: 1.0
+  # 保底触发
+  guarantee-trigger:
+    sound: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 2.0
+  # 直达石生效
+  direct-up:
+    sound: ENTITY_PLAYER_LEVELUP
+    volume: 1.0
+    pitch: 2.5
+  # 无法操作
+  deny:
+    sound: ENTITY_VILLAGER_NO
+    volume: 1.0
+    pitch: 1.0
+  # 点击按钮
+  click:
+    sound: UI_BUTTON_CLICK
+    volume: 0.5
+    pitch: 1.0
+  # 关闭 GUI
+  close:
+    sound: BLOCK_CHEST_CLOSE
+    volume: 0.5
+    pitch: 1.0
+
+# 安全设置
+security:
+  # 强化冷却时间（毫秒）防止连点
+  upgrade-cooldown: 200
+  # 关闭 GUI 时是否自动返还物品
+  return-items-on-close: true
+  # 是否在玩家退出时返还物品
+  return-items-on-quit: true
+  # 是否禁止 Shift+点击
+  block-shift-click: true
+  # 是否禁止数字键交换
+  block-number-key: true
+  # 是否禁止拖拽
+  block-drag: false

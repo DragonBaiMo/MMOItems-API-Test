@@ -3,6 +3,7 @@ package net.Indyuce.mmoitems.api;
 import io.lumine.mythic.lib.MythicLib;
 import io.lumine.mythic.lib.UtilityMethods;
 import io.lumine.mythic.lib.api.item.NBTItem;
+import io.lumine.mythic.lib.damage.DamageType;
 import io.lumine.mythic.lib.player.cooldown.CooldownObject;
 import io.lumine.mythic.lib.player.modifier.ModifierSource;
 import io.lumine.mythic.lib.skill.handler.SkillHandler;
@@ -105,6 +106,8 @@ public class Type implements CooldownObject, PreloadedObject {
     private SkillHandler<?> onLeftClick, onRightClick, onAttack, onEntityInteract;
     private boolean meleeAttacks, hideInGame;
 
+    private final List<DamageType> attackDamageTypes = new ArrayList<>();
+
     /**
      * Cached list of stats which can be applied onto an item with this type
      */
@@ -154,6 +157,15 @@ public class Type implements CooldownObject, PreloadedObject {
         meleeAttacks = !config.getBoolean("disable-melee-attacks");
         hideInGame = config.getBoolean("hide-in-game");
         tooltip = config.contains("tooltip") ? MMOUtils.friendlyValueOf(MMOItems.plugin.getLore()::getTooltip, config.getString("tooltip"), "Could not find tooltip with ID '%s'") : null;
+
+        // 攻击伤害类型
+        if (isWeapon()) {
+            attackDamageTypes.clear();
+            if (config.contains("attack-damage-types"))
+                attackDamageTypes.addAll(DamageType.listFromConfig(config.get("attack-damage-types")));
+            else if (parent != null) attackDamageTypes.addAll(parent.getAttackDamageTypes());
+            else attackDamageTypes.addAll(List.of(DamageType.WEAPON, DamageType.PHYSICAL));
+        }
     }
 
     @NotNull
@@ -187,6 +199,11 @@ public class Type implements CooldownObject, PreloadedObject {
 
     public boolean isWeapon() {
         return modifierSource.isWeapon();
+    }
+
+    @NotNull
+    public List<DamageType> getAttackDamageTypes() {
+        return attackDamageTypes;
     }
 
     public boolean hasMeleeAttacks() {

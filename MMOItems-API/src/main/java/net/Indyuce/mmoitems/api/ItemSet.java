@@ -79,7 +79,7 @@ public class ItemSet {
                             ItemStat<?, ?> stat = MMOItems.plugin.getStats().get(format);
                             Validate.notNull(stat, String.format("Could not find stat called '%s'", format));
                             bonuses.addStat(stat, config.getDouble(String.format("bonuses.%d.%s", j, key)));
-                        } catch (IllegalArgumentException exception) {
+                        } catch (Exception exception) {
                             throw new IllegalArgumentException(String.format("Could not load set bonus '%s': %s", key, exception.getMessage()));
                         }
                     }

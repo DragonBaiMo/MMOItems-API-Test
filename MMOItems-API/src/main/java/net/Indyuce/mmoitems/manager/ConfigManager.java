@@ -392,6 +392,7 @@ public class ConfigManager implements Reloadable {
         MUSKET,
         OFF_CATALYST,
         ORNAMENT,
+        RING,
         SHIELD,
         SPEAR,
         STAFF,

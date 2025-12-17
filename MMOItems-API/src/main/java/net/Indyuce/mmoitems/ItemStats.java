@@ -5,6 +5,11 @@ import net.Indyuce.mmoitems.stat.*;
 import net.Indyuce.mmoitems.stat.annotation.DeprecatedStat;
 import net.Indyuce.mmoitems.stat.block.*;
 import net.Indyuce.mmoitems.stat.type.*;
+import net.Indyuce.mmoitems.stat.AuxiliaryChanceBonus;
+import net.Indyuce.mmoitems.stat.AuxiliaryProtection;
+import net.Indyuce.mmoitems.stat.AuxiliaryDirectUpChance;
+import net.Indyuce.mmoitems.stat.AuxiliaryDirectUpLevels;
+import net.Indyuce.mmoitems.stat.TransferStone;
 import org.bukkit.Material;
 
 /**
@@ -152,6 +157,10 @@ public class ItemStats {
             SUBMERGED_MINING_SPEED = new SubmergedMiningSpeed(),
             SWEEPING_DAMAGE_RATIO = new SweepingDamageRatio(),
             WATER_MOVEMENT_EFFICIENCY = new WaterMovementEfficiency(),
+            // 自定义战斗属性
+            DISTANCE_BONUS_TABLE = new DistanceBonusTableStat(),
+            DECREASE_DIRECT = new DecreaseDirectStat(),
+            DECREASE_PERCENTAGE = new DecreasePercentageStat(),
 
     // Permanent Effects
     PERM_EFFECTS = new PermanentEffects(),
@@ -182,6 +191,13 @@ public class ItemStats {
             ITEM_TYPE_RESTRICTION = new ItemTypeRestriction(),
             MAX_CONSUME = new MaxConsume(),
             SUCCESS_RATE = new SuccessRate(),
+
+    // Auxiliary Stone Stats (强化辅料属性)
+    AUXILIARY_CHANCE_BONUS = new AuxiliaryChanceBonus(),
+            AUXILIARY_PROTECTION = new AuxiliaryProtection(),
+            AUXILIARY_DIRECT_UP_CHANCE = new AuxiliaryDirectUpChance(),
+            AUXILIARY_DIRECT_UP_LEVELS = new AuxiliaryDirectUpLevels(),
+            TRANSFER_STONE = new TransferStone(),
 
     // Crafting Stats
     CRAFTING = new Crafting(),

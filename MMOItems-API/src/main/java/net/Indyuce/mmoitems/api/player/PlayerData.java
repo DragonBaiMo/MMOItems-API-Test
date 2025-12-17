@@ -8,7 +8,7 @@ import io.lumine.mythic.lib.data.SaveReason;
 import io.lumine.mythic.lib.player.PlayerMetadata;
 import io.lumine.mythic.lib.player.permission.PermissionModifier;
 import io.lumine.mythic.lib.player.potion.PermanentPotionEffect;
-import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
+import io.lumine.mythic.lib.skill.SkillMetadata;
 import io.lumine.mythic.lib.version.VPotionEffectType;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.crafting.CraftingStatus;
@@ -48,9 +48,17 @@ public class PlayerData extends SynchronizedDataHolder {
     public void onSessionReady() {
         super.onSessionReady();
 
-        // 修复 MythicLib/MMOCore 档案加载事件触发时的装备解析缺失问题
-        inventoryResolver.initialize();
-        inventoryResolver.resolveInventory();
+        /*
+         * MMOItems 需要等待所有 MMO 系插件（主要是 MMOCore）完成档案加载后
+         * 再解析玩家装备，否则装备需求可能导致玩家属性未及时生效，
+         * 直到重新穿戴才会刷新。
+         *
+         * 修复 MythicLib/MMOCore 档案加载事件触发时的装备解析缺失问题
+         */
+        getMMOPlayerData().getProfileSession().addOpenCallback(ignore -> {
+            inventoryResolver.initialize();
+            inventoryResolver.resolveInventory();
+        });
     }
 
     @Override
@@ -261,7 +269,7 @@ public class PlayerData extends SynchronizedDataHolder {
     @Deprecated
     public void cast(@Nullable AttackMetadata attack, @Nullable LivingEntity target, @NotNull AbilityData ability) {
         PlayerMetadata caster = getMMOPlayerData().getStatMap().cache(EquipmentSlot.MAIN_HAND);
-        ability.cast(new TriggerMetadata(caster, target, attack));
+        ability.cast(SkillMetadata.of(caster, target, attack, null));
     }
 
     /**

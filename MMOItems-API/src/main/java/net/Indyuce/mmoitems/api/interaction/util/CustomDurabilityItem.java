@@ -19,7 +19,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Class which handles custom durability; you can add or remove
@@ -157,30 +156,35 @@ public class CustomDurabilityItem extends DurabilityItem {
             return updated;
         }
 
-        // 构建宽松匹配正则：仅替换 {current}/{max} 数字不同的情况
-        final String coloredRaw = MythicLib.inst().parseColors(rawFormat);
+        // 构建宽松匹配：只要求固定片段按顺序出现，允许中间存在额外文本或颜色。
+        final String coloredRaw = MythicLib.inst().parseColors(rawFormat).toLowerCase();
         final int currentIndex = coloredRaw.indexOf("{current}");
         final int maxIndex = coloredRaw.indexOf("{max}");
-        if (currentIndex < 0 || maxIndex < 0 || currentIndex > maxIndex) {
-            return updated;
-        }
+        if (currentIndex < 0 || maxIndex < 0 || currentIndex > maxIndex) return updated;
 
         final String beforeCurrent = coloredRaw.substring(0, currentIndex);
         final String betweenCurrentAndMax = coloredRaw.substring(currentIndex + "{current}".length(), maxIndex);
         final String afterMax = coloredRaw.substring(maxIndex + "{max}".length());
-        final Pattern pattern = Pattern.compile(
-                Pattern.quote(beforeCurrent) + "\\d+" + Pattern.quote(betweenCurrentAndMax) + "\\d+" + Pattern.quote(afterMax),
-                Pattern.CASE_INSENSITIVE
-        );
 
         for (int i = 0; i < afterLore.size(); i++) {
-            final String line = afterLore.get(i);
-            if (pattern.matcher(line).matches()) {
-                afterLore.set(i, newLine);
-                updatedMeta.setLore(afterLore);
-                updated.setItemMeta(updatedMeta);
-                return updated;
-            }
+            final String originalLine = afterLore.get(i);
+            final String lowerLine = originalLine.toLowerCase();
+
+            int index = beforeCurrent.isEmpty() ? 0 : lowerLine.indexOf(beforeCurrent);
+            if (index < 0) continue;
+            index += beforeCurrent.length();
+
+            index = betweenCurrentAndMax.isEmpty() ? index : lowerLine.indexOf(betweenCurrentAndMax, index);
+            if (index < 0) continue;
+            index += betweenCurrentAndMax.length();
+
+            index = afterMax.isEmpty() ? index : lowerLine.indexOf(afterMax, index);
+            if (index < 0) continue;
+
+            afterLore.set(i, newLine);
+            updatedMeta.setLore(afterLore);
+            updated.setItemMeta(updatedMeta);
+            return updated;
         }
 
         return updated;

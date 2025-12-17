@@ -153,8 +153,11 @@ public class UpgradingEdition extends EditionInventory {
 			destroyOnFailLore.add(ChatColor.GRAY + "销毁");
 			destroyOnFailLore.add("");
 			destroyOnFailLore.add(ChatColor.GRAY + "当前值: " + ChatColor.GOLD + getEditedSection().getBoolean("upgrade.destroy"));
+			String destroyProtectKey = getEditedSection().getString("upgrade.destroy-protect-key", "");
+			destroyOnFailLore.add(ChatColor.GRAY + "销毁保护标签: " + (destroyProtectKey.isEmpty() ? ChatColor.RED + "无" : ChatColor.GOLD + destroyProtectKey));
 			destroyOnFailLore.add("");
-			destroyOnFailLore.add(ChatColor.YELLOW + AltChar.listDash + " 点击切换此值");
+			destroyOnFailLore.add(ChatColor.YELLOW + AltChar.listDash + " 左键切换此值");
+			destroyOnFailLore.add(ChatColor.YELLOW + AltChar.listDash + " 右键设置销毁保护标签");
 			destroyOnFailMeta.setLore(destroyOnFailLore);
 			destroyOnFail.setItemMeta(destroyOnFailMeta);
 			inventory.setItem(42, destroyOnFail);
@@ -321,11 +324,18 @@ public class UpgradingEdition extends EditionInventory {
 
 		// 失败时销毁
 		if (item.getItemMeta().getDisplayName().equals(ChatColor.GREEN + "失败时销毁?")) {
-			boolean bool = !getEditedSection().getBoolean("upgrade.destroy");
-			getEditedSection().set("upgrade.destroy", bool);
-			registerTemplateEdition();
-			player.sendMessage(MMOItems.plugin.getPrefix()
-					+ (bool ? "强化失败时物品将被销毁。" : "强化失败时物品不会被销毁。"));
+			if (event.getAction() == InventoryAction.PICKUP_ALL) {
+				boolean bool = !getEditedSection().getBoolean("upgrade.destroy");
+				getEditedSection().set("upgrade.destroy", bool);
+				registerTemplateEdition();
+				player.sendMessage(MMOItems.plugin.getPrefix()
+						+ (bool ? "强化失败时物品将被销毁。" : "强化失败时物品不会被销毁。"));
+				return;
+			}
+			if (event.getAction() == InventoryAction.PICKUP_HALF) {
+				new StatEdition(this, ItemStats.UPGRADE, "destroy-protect").enable("请输入销毁保护标签（留空清除）。");
+				return;
+			}
 		}
 
 		// ========== 成功率衰减配置处理 ==========

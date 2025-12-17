@@ -246,6 +246,20 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 			return;
 		}
 
+		// 销毁保护标签（仅标签）
+		if (info[0].equals("destroy-protect")) {
+			String protectKey = message.trim();
+			if (protectKey.isEmpty()) {
+				inv.getEditedSection().set("upgrade.destroy-protect-key", null);
+				inv.getPlayer().sendMessage(MMOItems.plugin.getPrefix() + "销毁保护标签已清除。");
+			} else {
+				inv.getEditedSection().set("upgrade.destroy-protect-key", protectKey);
+				inv.getPlayer().sendMessage(MMOItems.plugin.getPrefix() + "销毁保护标签已设置为 " + ChatColor.GOLD + protectKey + ChatColor.GRAY + "。");
+			}
+			inv.registerTemplateEdition();
+			return;
+		}
+
 		Validate.isTrue(MMOItems.plugin.getUpgrades().hasTemplate(message), "Could not find any upgrade template with ID '" + message + "'.");
 		inv.getEditedSection().set("upgrade.template", message);
 		inv.registerTemplateEdition();
@@ -412,12 +426,21 @@ public class UpgradeStat extends ItemStat<UpgradeData, UpgradeData> implements C
 					}
 				}
 
-				// 优先级3：原有的销毁逻辑（作为兜底）
+				// 优先级3：销毁判定（可保护）
 				if (!penaltyApplied) {
-					Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
-					if (targetSharpening.destroysOnFail())
-						event.getCurrentItem().setAmount(0);
-					player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
+					if (targetSharpening.destroysOnFail()) {
+						if (tryConsumeProtection(player, targetSharpening.getDestroyProtectKey())) {
+							Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+							player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+						} else {
+							Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
+							event.getCurrentItem().setAmount(0);
+							player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
+						}
+					} else {
+						Message.UPGRADE_FAIL.format(ChatColor.RED).send(player);
+						player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 2);
+					}
 				}
 
 				return true;

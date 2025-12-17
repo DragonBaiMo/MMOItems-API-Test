@@ -4,8 +4,8 @@ import io.lumine.mythic.lib.api.player.EquipmentSlot;
 import io.lumine.mythic.lib.api.player.MMOPlayerData;
 import io.lumine.mythic.lib.damage.AttackMetadata;
 import io.lumine.mythic.lib.player.PlayerMetadata;
+import io.lumine.mythic.lib.skill.SkillMetadata;
 import io.lumine.mythic.lib.skill.result.SkillResult;
-import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
 import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.player.PlayerData;
@@ -78,9 +78,9 @@ public class MMOItemsAPI {
      */
     public SkillResult castSkill(Player player, RegisteredSkill skill, @NotNull Map<String, Double> modifiers, @Nullable LivingEntity target, @Nullable AttackMetadata attackMeta) {
         AbilityData castable = new AbilityData(skill, TriggerType.CAST);
-        modifiers.forEach((mod, value) -> castable.setModifier(mod, value));
+        modifiers.forEach(castable::setModifier);
 
         PlayerMetadata caster = MMOPlayerData.get(player).getStatMap().cache(EquipmentSlot.MAIN_HAND);
-        return castable.cast(new TriggerMetadata(caster, target, attackMeta));
+        return castable.cast(SkillMetadata.of(caster, target, attackMeta, null));
     }
 }

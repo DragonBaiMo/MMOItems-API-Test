@@ -171,6 +171,54 @@ item-upgrading:
     stat-change-positive: '&a'
     stat-change-negative: '&c'
 
+    # ===== 保底机制配置 =====
+    # 同一物品连续强化失败达到阈值后，下次强化必定成功
+    guarantee:
+        # 是否启用保底机制
+        enabled: true
+        # 连续失败多少次后触发保底（默认30次）
+        threshold: 30
+        # 强化成功后是否重置失败计数
+        reset-on-success: true
+
+    # ===== 每日限制配置 =====
+    # 限制玩家每天的强化次数
+    daily-limit:
+        # 是否启用每日限制（默认关闭）
+        enabled: false
+        # 默认每日最大强化次数
+        default-max: 50
+        # 每日重置时间（0-23小时，0表示凌晨0点）
+        reset-hour: 0
+        # 绕过限制的权限节点
+        bypass-permission: "mmoitems.upgrade.bypass-daily"
+
+    # ===== 强化后自动绑定配置 =====
+    # 强化成功后自动将物品绑定给强化者
+    auto-bind-on-upgrade:
+        # 是否启用强化后自动绑定（默认关闭）
+        enabled: false
+        # 绑定等级（1-7，等级越高解绑越难）
+        level: 1
+        # 是否显示绑定消息
+        show-message: true
+
+    # ===== 全服通报配置 =====
+    # 当玩家强化到指定等级时全服广播
+    broadcast:
+        # 是否启用全服通报（默认关闭）
+        enabled: false
+        # 触发通报的等级列表
+        levels:
+            - 12
+            - 15
+            - 20
+            - 25
+            - 30
+        # 通报消息格式
+        # 占位符: {player} = 玩家名, {item} = 物品名, {level} = 强化等级
+        message: "&6[强化通报] &a{player} 的 &e{item}&a 强化到 &c+{level}&a 级！"
+
 stats-displaying:
 
     # This will be a prefix to numeric stats,
@@ -209,19 +257,19 @@ auto-bind:
 
 gem-sockets:
 
-    # Define the text you need to enter in the
-    # item gem sockets if you want to create an
-    # uncolored gem socket i.e a socket for any type of gem.
+    # Define the text you need to enter the item
+    # gem sockets if you want to create an uncolored
+    # gem socket i.e a socket for any type of gem.
     uncolored: 'Uncolored'
 
 custom-blocks:
 
-    # Whether or not custom blocks should
+    # Whether custom blocks should
     # generate in the world according to
     # their generation template.
     enable-world-gen: false
 
-    # Whether or not to remove mushroom block drops
+    # Whether to remove mushroom block drops
     # from the droplist when mining a mushroom block
     # with silk-touch.
     # HIGHLY Recommended for servers that use
@@ -235,7 +283,7 @@ item-upgrade-requirements-check: true
 
 # Players can't use their weapon/abilities when holding
 # two-handed item and one other item simultaneously.
-# When toggled off, players still receive slow 4.
+# When toggled off, players still receive slowness 4.
 two-handed-item-restriction: true
 
 # You can select what char will be used to create

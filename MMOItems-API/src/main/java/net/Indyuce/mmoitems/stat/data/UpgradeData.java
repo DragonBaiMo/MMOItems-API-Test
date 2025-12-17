@@ -49,6 +49,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 	// ========== 保护机制配置 ==========
 	@Nullable private final String downgradeProtectKey;
 	@Nullable private final String breakProtectKey;
+	@Nullable private final String destroyProtectKey;
 
 	// ========== 背包强化控制 ==========
 	private final boolean disableBackpack;
@@ -140,6 +141,11 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 	@Nullable public String getBreakProtectKey() { return breakProtectKey; }
 
 	/**
+	 * @return 销毁保护匹配标签
+	 */
+	@Nullable public String getDestroyProtectKey() { return destroyProtectKey; }
+
+	/**
 	 * @return 是否禁用背包强化
 	 */
 	public boolean isBackpackDisabled() { return disableBackpack; }
@@ -174,7 +180,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 				false, 1.0,
 				-1, -1, 0, 1,
 				-1, -1, 0,
-				null, null, false);
+				null, null, null, false);
 	}
 
 	/**
@@ -198,13 +204,14 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 	 * @param breakChance 碎裂概率
 	 * @param downgradeProtectKey 掉级保护物品标签
 	 * @param breakProtectKey 碎裂保护物品标签
+	 * @param destroyProtectKey 销毁保护物品标签
 	 * @param disableBackpack 是否禁用背包强化
 	 */
 	public UpgradeData(@Nullable String reference, @Nullable String template, boolean workbench, boolean destroy, int max, int min, double success,
 					   boolean decayEnabled, double decayFactor,
 					   int downgradeRangeMin, int downgradeRangeMax, double downgradeChance, int downgradeAmount,
 					   int breakRangeMin, int breakRangeMax, double breakChance,
-					   @Nullable String downgradeProtectKey, @Nullable String breakProtectKey, boolean disableBackpack) {
+					   @Nullable String downgradeProtectKey, @Nullable String breakProtectKey, @Nullable String destroyProtectKey, boolean disableBackpack) {
 		this.reference = reference;
 		this.template = template;
 		this.workbench = workbench;
@@ -223,6 +230,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 		this.breakChance = breakChance;
 		this.downgradeProtectKey = downgradeProtectKey;
 		this.breakProtectKey = breakProtectKey;
+		this.destroyProtectKey = destroyProtectKey;
 		this.disableBackpack = disableBackpack;
 	}
 
@@ -285,6 +293,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 		// 保护配置
 		downgradeProtectKey = section.getString("downgrade-protect-key");
 		breakProtectKey = section.getString("break-protect-key");
+		destroyProtectKey = section.getString("destroy-protect-key");
 
 		// 背包强化控制（默认 false，向后兼容）
 		disableBackpack = section.getBoolean("disable-backpack", false);
@@ -322,6 +331,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 		// 保护配置
 		downgradeProtectKey = object.has("DowngradeProtectKey") ? object.get("DowngradeProtectKey").getAsString() : null;
 		breakProtectKey = object.has("BreakProtectKey") ? object.get("BreakProtectKey").getAsString() : null;
+		destroyProtectKey = object.has("DestroyProtectKey") ? object.get("DestroyProtectKey").getAsString() : null;
 
 		// 背包强化控制（默认 false，向后兼容）
 		disableBackpack = object.has("DisableBackpack") && object.get("DisableBackpack").getAsBoolean();
@@ -470,6 +480,8 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 			json.addProperty("DowngradeProtectKey", downgradeProtectKey);
 		if (breakProtectKey != null && !breakProtectKey.isEmpty())
 			json.addProperty("BreakProtectKey", breakProtectKey);
+		if (destroyProtectKey != null && !destroyProtectKey.isEmpty())
+			json.addProperty("DestroyProtectKey", destroyProtectKey);
 
 		// 背包强化控制（仅在启用时序列化）
 		if (disableBackpack)
@@ -494,7 +506,7 @@ public class UpgradeData implements StatData, RandomStatData<UpgradeData> {
 				decayEnabled, decayFactor,
 				downgradeRangeMin, downgradeRangeMax, downgradeChance, downgradeAmount,
 				breakRangeMin, breakRangeMax, breakChance,
-				downgradeProtectKey, breakProtectKey, disableBackpack);
+				downgradeProtectKey, breakProtectKey, destroyProtectKey, disableBackpack);
 		cloned.setLevel(this.level);
 		return cloned;
 	}

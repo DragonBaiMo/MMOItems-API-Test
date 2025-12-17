@@ -10,9 +10,8 @@ import io.lumine.mythic.lib.damage.MeleeAttackMetadata;
 import io.lumine.mythic.lib.entity.ProjectileMetadata;
 import io.lumine.mythic.lib.entity.ProjectileType;
 import io.lumine.mythic.lib.skill.SimpleSkill;
+import io.lumine.mythic.lib.skill.SkillMetadata;
 import io.lumine.mythic.lib.skill.handler.SkillHandler;
-import io.lumine.mythic.lib.skill.trigger.TriggerMetadata;
-import io.lumine.mythic.lib.skill.trigger.TriggerType;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.event.item.SpecialWeaponAttackEvent;
@@ -151,10 +150,11 @@ public class ItemUse implements Listener {
         // Make sure it's a melee attack
         if (!(event.getAttack() instanceof MeleeAttackMetadata)) return;
 
-        final Player player = event.getPlayer();
-        final ItemStack weaponUsed = player.getInventory().getItem(((MeleeAttackMetadata) event.getAttack()).getHand().toBukkit());
-        final NBTItem item = MythicLib.plugin.getVersion().getWrapper().getNBTItem(weaponUsed);
-        final Type itemType = Type.get(item);
+        final var attackMeta = (MeleeAttackMetadata) event.getAttack();
+        final var player = event.getPlayer();
+        final var weaponUsed = player.getInventory().getItem(attackMeta.getHand().toBukkit());
+        final var nbtItem = MythicLib.plugin.getVersion().getWrapper().getNBTItem(weaponUsed);
+        final var itemType = Type.get(nbtItem);
         if (itemType == null || itemType == Type.BLOCK) return;
 
         // Prevent melee attacks with non-melee weapons
@@ -164,18 +164,18 @@ public class ItemUse implements Listener {
         }
 
         // Check item requirements
-        final PlayerData playerData = PlayerData.get(player);
-        final Weapon weapon = new Weapon(playerData, item);
+        final var playerData = PlayerData.get(player);
+        final var weapon = new Weapon(playerData, nbtItem);
         if (!weapon.checkItemRequirements()) {
             event.setCancelled(true);
             return;
         }
 
         // 先尝试自动绑定（仅在绑定成功时由工具方法写回对应手槽）
-        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item, ((MeleeAttackMetadata) event.getAttack()).getHand().toBukkit());
+        net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, nbtItem, attackMeta.getHand().toBukkit());
 
         // Apply melee attack
-        if (!weapon.handleTargetedAttack(event.getAttack(), event.getAttacker(), event.getEntity()))
+        if (!weapon.handleTargetedAttack(attackMeta, event.getAttacker(), event.getEntity(), event))
             event.setCancelled(true);
     }
 
@@ -231,7 +231,7 @@ public class ItemUse implements Listener {
             SpecialWeaponAttackEvent called = new SpecialWeaponAttackEvent(usableItem.getPlayerData(), (Weapon) usableItem, target);
             Bukkit.getPluginManager().callEvent(called);
             if (!called.isCancelled())
-                new SimpleSkill(onEntityInteract).cast(new TriggerMetadata(usableItem.getPlayerData().getMMOPlayerData(), TriggerType.API, target));
+                new SimpleSkill(onEntityInteract).cast(SkillMetadata.of(usableItem.getPlayerData().getMMOPlayerData(), target));
         }
     }
 
@@ -308,10 +308,12 @@ public class ItemUse implements Listener {
                 return;
             }
 
-            EquipmentSlot bowSlot = EquipmentSlot.fromBukkit(MMOUtils.getHand(event, playerData.getPlayer()));
+            final var damageTypes = type.getAttackDamageTypes();
+            final var bowSlot = EquipmentSlot.fromBukkit(MMOUtils.getHand(event, playerData.getPlayer()));
             // 先尝试自动绑定（仅在绑定成功时由工具方法写回弓所在槽位）
             net.Indyuce.mmoitems.util.AutoBindUtil.applyAutoBindIfNeeded(playerData, item, bowSlot.toBukkit());
-            final ProjectileMetadata proj = ProjectileMetadata.create(playerData.getMMOPlayerData(), bowSlot, ProjectileType.ARROW, event.getProjectile());
+            final var shooterMeta = playerData.getMMOPlayerData().getStatMap().cache(bowSlot);
+            final var proj = ProjectileMetadata.create(shooterMeta, damageTypes, ProjectileType.ARROW, event.getProjectile());
             proj.setSourceItem(item);
             proj.setCustomDamage(true);
             proj.setDamageMultiplier(MMOUtils.getForce(event));

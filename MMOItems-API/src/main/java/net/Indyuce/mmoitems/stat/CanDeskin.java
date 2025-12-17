@@ -60,6 +60,7 @@ public class CanDeskin extends BooleanStat implements ConsumableItemInteraction 
                 target.removeTag("MMOITEMS_ITEM_PARTICLES");
 
             ItemStack targetItem = target.toItem();
+            targetItem.setType(originalItem.getType());
             ItemMeta targetItemMeta = targetItem.getItemMeta();
             ItemMeta originalItemMeta = originalItem.getItemMeta();
 
@@ -91,8 +92,10 @@ public class CanDeskin extends BooleanStat implements ConsumableItemInteraction 
 
             // Equippable model
             if (MythicLib.plugin.getVersion().isAbove(1, 21, 2)) {
-                if (targetItemMeta.hasEquippable()) {
+                if (originalItemMeta.hasEquippable()) {
                     targetItemMeta.setEquippable(originalItemMeta.getEquippable());
+                } else {
+                    targetItemMeta.setEquippable(null);
                 }
             }
 
@@ -106,16 +109,15 @@ public class CanDeskin extends BooleanStat implements ConsumableItemInteraction 
                 targetItemMeta.setItemModel(originalItemMeta.getItemModel());
             }
 
-            // TODO wtf is this
-            if (target.hasTag("SkullOwner") && (targetItem.getType() == Material.PLAYER_HEAD)
-                    && (originalItem.getType() == Material.PLAYER_HEAD))
+            // 头颅贴图
+            if (targetItem.getType() == Material.PLAYER_HEAD && originalItem.getType() == Material.PLAYER_HEAD)
                 MythicLib.plugin.getVersion().getWrapper().setProfile((SkullMeta) targetItemMeta,
                         ((SkullTextureData) originalMmoitem.getData(ItemStats.SKULL_TEXTURE)).getGameProfile());
 
             // Update un-skined item
             final ItemStack updated = target.getItem();
-            updated.setItemMeta(targetItemMeta);
             updated.setType(originalItem.getType());
+            updated.setItemMeta(targetItemMeta);
 
             // Give back the skin item
             try {

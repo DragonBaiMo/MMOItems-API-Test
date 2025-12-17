@@ -50,6 +50,9 @@ SWORD:
     # What the item type does
     on-attack: slashing_attack_effect
 
+    # Damage types dealt by attacks done with this item type
+    attack-damage-types: [ WEAPON, PHYSICAL ]
+
     # Any item of this type will inherit from this tooltip
     # Does not have precedence over item- or tier-specific tooltip
     # https://gitlab.com/phoenix-dvpmt/mmoitems/-/wikis/Item-Tooltips
@@ -70,6 +73,7 @@ DAGGER:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     on-attack: piercing_attack_effect
+    attack-damage-types: [ WEAPON, PHYSICAL ]
 
 SPEAR:
     display: TRIDENT
@@ -85,6 +89,7 @@ SPEAR:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     on-attack: piercing_attack_effect
+    attack-damage-types: [ WEAPON, PHYSICAL ]
 
 HAMMER:
     display: IRON_AXE
@@ -100,6 +105,7 @@ HAMMER:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     on-attack: blunt_attack_effect
+    attack-damage-types: [ WEAPON, PHYSICAL ]
 
 GAUNTLET:
     display: IRON_SHOVEL
@@ -116,6 +122,7 @@ GAUNTLET:
 
     on-attack: blunt_attack_effect
     on-entity-interact: gauntlet_special_attack
+    attack-damage-types: [ WEAPON, PHYSICAL ]
 
 WHIP:
     display: LEAD
@@ -134,6 +141,11 @@ WHIP:
     on-left-click: whip_attack
     on-attack: slashing_attack_effect
 
+    # This will have no effect as this item type uses an 'on-left-click' attack effect:
+    #attack-damage-types: [ WEAPON, PROJECTILE ]
+    # To change damage types, you need to edit the script named 'whip_attack'.
+    # By default, this script is located inside 'MythicLib/script/mmoitems_scripts.yml'.
+
 STAFF:
     display: DIAMOND_HOE
     name: 'Staff'
@@ -148,9 +160,14 @@ STAFF:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     disable-melee-attacks: true
-    on-left-click: staff_default
+    on-left-click: staff_default # What happens on staff left clicks
     attack-cooldown-key: "staff"
     on-entity-interact: staff_special_attack # Special action when right-clicking entities
+
+    # This will have no effect as this item type uses an 'on-left-click' attack effect:
+    #attack-damage-types: [ WEAPON, PROJECTILE ]
+    # To change damage types, you need to edit the script named 'staff_default'.
+    # By default, this script is located inside 'MythicLib/script/mmoitems_scripts.yml'.
 
 BOW:
     display: BOW
@@ -166,6 +183,8 @@ BOW:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     disable-melee-attacks: true
+    # Damage types dealt by projectiles fired with items of this type
+    attack-damage-types: [ WEAPON, PROJECTILE ]
 
 CROSSBOW:
     display: WOODEN_PICKAXE
@@ -179,6 +198,11 @@ CROSSBOW:
         - '{tier}&8Item Info:'
         - '{range}&8- &7Lvl Range: &e#range#'
         - '{tier}&8- &7Item Tier: #prefix##tier#'
+
+    # This will have no effect as this item type uses an 'on-right-click' attack effect:
+    #attack-damage-types: [ WEAPON, PROJECTILE ]
+    # To change damage types, you need to edit the script named 'crossbow_attack'.
+    # By default, this script is located inside 'MythicLib/script/mmoitems_scripts.yml'.
 
     disable-melee-attacks: true
     on-right-click: crossbow_attack
@@ -197,7 +221,7 @@ MUSKET:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     disable-melee-attacks: true
-    # Lutes and muskets attack effects are hardcoded as
+    # Lutes' and muskets' attack effects are hardcoded as
     # of MI 6.10 and cannot be modified at the moment.
 
 LUTE:
@@ -214,7 +238,7 @@ LUTE:
         - '{tier}&8- &7Item Tier: #prefix##tier#'
 
     disable-melee-attacks: true
-    # Lutes and muskets attack effects are hardcoded as
+    # Lutes' and muskets' attack effects are hardcoded as
     # of MI 6.10 and cannot be modified at the moment.
 
 # Applies stats in both hands

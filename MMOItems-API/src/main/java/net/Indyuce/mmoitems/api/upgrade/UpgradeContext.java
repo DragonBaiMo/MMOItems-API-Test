@@ -40,6 +40,39 @@ public class UpgradeContext {
     private final int directLevel;
     private final InventoryClickEvent event;
 
+    // ===== 辅料相关字段 =====
+    /**
+     * 辅料成功率加成（百分比）
+     * <p>
+     * 来自幸运石的加成，直接加到成功率上
+     * </p>
+     */
+    private final double auxiliaryChanceBonus;
+
+    /**
+     * 辅料惩罚保护（百分比）
+     * <p>
+     * 来自保护石的加成，降低惩罚触发概率
+     * </p>
+     */
+    private final double auxiliaryProtection;
+
+    /**
+     * 直达石触发概率（百分比）
+     * <p>
+     * 强化成功时触发额外升级的概率
+     * </p>
+     */
+    private final double auxiliaryDirectUpChance;
+
+    /**
+     * 直达石跳级数量
+     * <p>
+     * 直达石触发时额外升级的等级数
+     * </p>
+     */
+    private final int auxiliaryDirectUpLevels;
+
     /**
      * 私有构造函数，通过 Builder 创建实例
      *
@@ -56,6 +89,11 @@ public class UpgradeContext {
         this.forceMode = builder.forceMode;
         this.directLevel = builder.directLevel;
         this.event = builder.event;
+        // 辅料字段
+        this.auxiliaryChanceBonus = builder.auxiliaryChanceBonus;
+        this.auxiliaryProtection = builder.auxiliaryProtection;
+        this.auxiliaryDirectUpChance = builder.auxiliaryDirectUpChance;
+        this.auxiliaryDirectUpLevels = builder.auxiliaryDirectUpLevels;
     }
 
     /**
@@ -224,6 +262,61 @@ public class UpgradeContext {
         return Math.max(1, directLevel - currentLevel);
     }
 
+    // ===== 辅料相关 Getter =====
+
+    /**
+     * 获取辅料成功率加成
+     * <p>
+     * 来自幸运石的百分比加成
+     * </p>
+     *
+     * @return 成功率加成百分比，默认为 0
+     */
+    public double getAuxiliaryChanceBonus() {
+        return auxiliaryChanceBonus;
+    }
+
+    /**
+     * 获取辅料惩罚保护
+     * <p>
+     * 来自保护石的惩罚概率降低百分比
+     * </p>
+     *
+     * @return 惩罚保护百分比，默认为 0
+     */
+    public double getAuxiliaryProtection() {
+        return auxiliaryProtection;
+    }
+
+    /**
+     * 获取直达石触发概率
+     *
+     * @return 直达石触发概率百分比，默认为 0
+     */
+    public double getAuxiliaryDirectUpChance() {
+        return auxiliaryDirectUpChance;
+    }
+
+    /**
+     * 获取直达石跳级数量
+     *
+     * @return 直达石触发时额外升级的等级数，默认为 0
+     */
+    public int getAuxiliaryDirectUpLevels() {
+        return auxiliaryDirectUpLevels;
+    }
+
+    /**
+     * 检查是否有辅料效果
+     *
+     * @return 如果有任何辅料效果返回 true
+     */
+    public boolean hasAuxiliaryEffect() {
+        return auxiliaryChanceBonus > 0
+                || auxiliaryProtection > 0
+                || auxiliaryDirectUpChance > 0;
+    }
+
     /**
      * 上下文构建器
      * <p>
@@ -250,6 +343,11 @@ public class UpgradeContext {
         private boolean forceMode = false;
         private int directLevel = 0;
         private InventoryClickEvent event;
+        // 辅料字段
+        private double auxiliaryChanceBonus = 0;
+        private double auxiliaryProtection = 0;
+        private double auxiliaryDirectUpChance = 0;
+        private int auxiliaryDirectUpLevels = 0;
 
         /**
          * 创建新的构建器实例
@@ -381,6 +479,52 @@ public class UpgradeContext {
             return this;
         }
 
+        // ===== 辅料字段 Setter =====
+
+        /**
+         * 设置辅料成功率加成
+         *
+         * @param bonus 成功率加成百分比
+         * @return 构建器实例
+         */
+        public Builder auxiliaryChanceBonus(double bonus) {
+            this.auxiliaryChanceBonus = bonus;
+            return this;
+        }
+
+        /**
+         * 设置辅料惩罚保护
+         *
+         * @param protection 惩罚概率降低百分比
+         * @return 构建器实例
+         */
+        public Builder auxiliaryProtection(double protection) {
+            this.auxiliaryProtection = protection;
+            return this;
+        }
+
+        /**
+         * 设置直达石触发概率
+         *
+         * @param chance 触发概率百分比
+         * @return 构建器实例
+         */
+        public Builder auxiliaryDirectUpChance(double chance) {
+            this.auxiliaryDirectUpChance = chance;
+            return this;
+        }
+
+        /**
+         * 设置直达石跳级数量
+         *
+         * @param levels 跳级数量
+         * @return 构建器实例
+         */
+        public Builder auxiliaryDirectUpLevels(int levels) {
+            this.auxiliaryDirectUpLevels = levels;
+            return this;
+        }
+
         /**
          * 构建 UpgradeContext 实例
          * <p>
@@ -416,6 +560,10 @@ public class UpgradeContext {
                 ", forceMode=" + forceMode +
                 ", directLevel=" + directLevel +
                 ", isCommandMode=" + isCommandMode() +
+                ", auxiliaryChanceBonus=" + auxiliaryChanceBonus +
+                ", auxiliaryProtection=" + auxiliaryProtection +
+                ", auxiliaryDirectUpChance=" + auxiliaryDirectUpChance +
+                ", auxiliaryDirectUpLevels=" + auxiliaryDirectUpLevels +
                 '}';
     }
 }

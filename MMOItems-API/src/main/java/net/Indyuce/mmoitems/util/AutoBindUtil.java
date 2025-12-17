@@ -85,15 +85,33 @@ public final class AutoBindUtil {
                 live.setData(stat, live.computeStatHistory(stat).recalculate(live.getUpgradeLevel()));
             }
         }
-        item.getItem().setItemMeta(live.newBuilder().build().getItemMeta());
+
+        /*
+         * 关键修复：必须使用 newBuilder().build() 的完整 ItemStack 写回槽位。
+         * 仅 setItemMeta 会在部分版本/实现下丢失 MMOItems/MythicLib 的自定义 NBT，导致：
+         * - SOULBOUND 未真正写入；
+         * - MMOITEMS_AUTO_BIND_ON_USE 仍为 true；
+         * 从而每次“使用效果”都会重复触发绑定提示，直到其它路径（如攻击）恰好重建物品。
+         */
+        final ItemStack rebuilt = live.newBuilder().build();
+        // 理论上自动绑定只允许单件，但仍保留数量，避免极端兼容场景下数量被重置
+        rebuilt.setAmount(item.getItem().getAmount());
+
+        // 尽力同步回当前 NBTItem 的 ItemStack（对未传槽位的调用提供最小可见更新）
+        try {
+            item.getItem().setType(rebuilt.getType());
+            item.getItem().setItemMeta(rebuilt.getItemMeta());
+        } catch (Throwable ignored) {
+            // 兼容性保护：不因同步失败影响绑定流程
+        }
 
         // 槽位写回：仅在绑定成功后进行，且仅对主手/副手写回
         if (slotToUpdate != null) {
             try {
                 if (slotToUpdate == EquipmentSlot.HAND) {
-                    player.getInventory().setItemInMainHand(item.getItem());
+                    player.getInventory().setItemInMainHand(rebuilt);
                 } else if (slotToUpdate == EquipmentSlot.OFF_HAND) {
-                    player.getInventory().setItemInOffHand(item.getItem());
+                    player.getInventory().setItemInOffHand(rebuilt);
                 }
             } catch (Throwable ignored) {
                 // 兼容性保护：不因写回失败影响绑定流程
