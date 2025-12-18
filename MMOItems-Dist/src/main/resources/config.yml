@@ -180,6 +180,8 @@ item-upgrading:
         threshold: 30
         # 强化成功后是否重置失败计数
         reset-on-success: true
+        # 失败计数过期时间（小时，<=0 表示不过期；例如 24 表示 24 小时内不强化则计数清零）
+        expire-hours: 0
 
     # ===== 每日限制配置 =====
     # 限制玩家每天的强化次数
@@ -192,6 +194,41 @@ item-upgrading:
         reset-hour: 0
         # 绕过限制的权限节点
         bypass-permission: "mmoitems.upgrade.bypass-daily"
+        # 是否将每日计数持久化到磁盘（文件：plugins/MMOItems/upgrade-daily-limit.yml）
+        persist-enabled: true
+        # 权限分档配置（优先级高的先匹配）
+        # 用于按权限配置不同玩家的每日上限
+        tiers:
+            svip:
+                permission: "mmoitems.upgrade.limit.svip"
+                max: 200
+                priority: 30
+            vip:
+                permission: "mmoitems.upgrade.limit.vip"
+                max: 100
+                priority: 20
+            # default 分档无需 permission，匹配所有玩家
+            default:
+                permission: ""
+                max: 50
+                priority: 0
+
+    # ===== 经济消耗配置 =====
+    # 强化时扣除金币/点券（需安装 DrcomoCoreLib）
+    economy-cost:
+        # 是否启用经济消耗（默认关闭）
+        enabled: false
+        # 经济类型: vault（金币）或 playerpoints（点券）
+        type: "vault"
+        # 按等级段配置费用
+        # 格式："起始等级-结束等级": 费用
+        tiers:
+            "0-5": 100
+            "6-10": 500
+            "11-15": 2000
+            "16-20": 5000
+            # 未匹配到等级段时使用此默认值
+            "default": 100
 
     # ===== 强化后自动绑定配置 =====
     # 强化成功后自动将物品绑定给强化者
@@ -218,6 +255,180 @@ item-upgrading:
         # 通报消息格式
         # 占位符: {player} = 玩家名, {item} = 物品名, {level} = 强化等级
         message: "&6[强化通报] &a{player} 的 &e{item}&a 强化到 &c+{level}&a 级！"
+
+    # ===== 强化特效配置 =====
+    # 强化成功/失败时的视觉效果
+    effects:
+        # 是否启用特效（默认开启）
+        enabled: true
+        # 成功特效
+        success:
+            # 粒子效果（Bukkit Particle 枚举名）
+            particle: "VILLAGER_HAPPY"
+            # 粒子数量
+            particle-count: 30
+            # 音效（Bukkit Sound 枚举名或 MythicLib 音效）
+            sound: "ENTITY_PLAYER_LEVELUP"
+            # 音量
+            volume: 1.0
+            # 音调
+            pitch: 1.5
+        # 失败特效
+        failure:
+            particle: "SMOKE_NORMAL"
+            particle-count: 20
+            sound: "ENTITY_ITEM_BREAK"
+            volume: 1.0
+            pitch: 1.0
+        # 碎裂特效
+        break:
+            particle: "EXPLOSION_LARGE"
+            particle-count: 1
+            sound: "ENTITY_GENERIC_EXPLODE"
+            volume: 1.0
+            pitch: 0.5
+        # 保底触发特效
+        guarantee:
+            particle: "TOTEM"
+            particle-count: 50
+            sound: "UI_TOAST_CHALLENGE_COMPLETE"
+            volume: 1.0
+            pitch: 1.0
+        # 特效权限控制（无权限则不显示粒子，只播放音效）
+        particle-permission: ""
+        # 按等级段配置额外特效（高等级成功时更华丽）
+        level-effects:
+            # 15级以上成功时额外特效
+            "15+":
+                particle: "FIREWORKS_SPARK"
+                particle-count: 50
+            # 20级以上成功时额外特效
+            "20+":
+                particle: "END_ROD"
+                particle-count: 100
+
+    # ===== 强化日志配置 =====
+    # 记录所有强化操作的日志，支持查询和分析
+    upgrade-log:
+        # 是否启用强化日志（默认关闭）
+        enabled: false
+        # 日志保留天数（超过后自动清理）
+        retention-days: 30
+
+    # ===== 额外概率加成配置 =====
+    # 支持通过 PAPI 变量、权限节点计算额外成功率加成
+    # 需要 DrcomoCoreLib 支持公式计算
+    chance-bonus:
+        # 是否启用额外概率加成（默认关闭）
+        enabled: false
+        # 概率加成公式（支持 PAPI 变量和数学表达式）
+        # 可用变量：
+        #   %player_level% - 玩家等级（需要 PAPI + 等级插件）
+        #   %mmoitems_upgrade_level% - 当前强化等级
+        #   %vault_eco_balance% - 玩家金币余额
+        #   自定义变量...
+        # 公式结果表示额外成功率加成（百分比）
+        # 例如：结果为 10 表示 +10% 成功率加成
+        formula: "0"
+        # 权限节点加成（按优先级匹配，高优先级先匹配）
+        # 玩家拥有对应权限时获得额外加成
+        permission-bonus:
+            # SVIP玩家 +15% 成功率
+            svip:
+                permission: "mmoitems.upgrade.bonus.svip"
+                bonus: 15
+                priority: 30
+            # VIP玩家 +10% 成功率
+            vip:
+                permission: "mmoitems.upgrade.bonus.vip"
+                bonus: 10
+                priority: 20
+            # 普通玩家无额外加成
+            default:
+                permission: ""
+                bonus: 0
+                priority: 0
+        # 最大额外加成上限（防止加成过高）
+        max-bonus: 50
+
+    # ===== 全局惩罚梯度配置 =====
+    # 当物品未配置惩罚规则时，使用全局惩罚梯度
+    # 优先级：物品配置 > 全局配置
+    global-penalty:
+        # 是否启用全局惩罚梯度（默认关闭，使用物品自身配置）
+        enabled: false
+        # 按等级段配置惩罚规则
+        # 格式："起始等级-结束等级"
+        tiers:
+            # 0-5级：无惩罚
+            "0-5":
+                # 惩罚类型: none（无惩罚）、downgrade（降级）、break（碎裂）、destroy（销毁）
+                type: "none"
+            # 6-10级：10%概率降1级
+            "6-10":
+                type: "downgrade"
+                chance: 0.1
+                amount: 1
+            # 11-15级：20%概率降1级，5%概率碎裂
+            "11-15":
+                type: "downgrade"
+                chance: 0.2
+                amount: 1
+                # 碎裂概率（在降级判定后独立判定）
+                break-chance: 0.05
+            # 16-20级：30%概率降2级，10%概率碎裂
+            "16-20":
+                type: "downgrade"
+                chance: 0.3
+                amount: 2
+                break-chance: 0.1
+            # 21+级：50%概率降3级，20%概率碎裂
+            "21+":
+                type: "downgrade"
+                chance: 0.5
+                amount: 3
+                break-chance: 0.2
+            # 未匹配到等级段时的默认惩罚
+            "default":
+                type: "none"
+
+    # ===== 强化等级转移配置 =====
+    transfer:
+        # 是否启用强化转移功能
+        enabled: true
+        # 转移模式: strict（仅同类型）或 loose（同类型/同父类型/父子类型）
+        mode: "loose"
+        # 转移比例（0-1，如 0.8 表示保留 80% 等级）
+        ratio: 0.8
+        # 最大可转移等级（-1 表示无限制）
+        max-level: -1
+        # 转移是否叠加到目标物品现有等级（true）还是覆盖（false）
+        stack-mode: true
+        # 转移后源物品等级是否重置为 0（true）还是保留（false）
+        reset-source: true
+
+    # ===== 强化等级转移类型兼容矩阵 =====
+    # 仅在 transfer.mode = "whitelist" 时使用白名单判定
+    # 否则按 strict/loose 模式判定
+    transfer-compatibility:
+        enabled: false
+        allow-legacy-auto: true
+        # 格式：FROM->TO，使用类型 ID，支持 ANY 通配；示例：SWORD->LONG_SWORD, ANY->STAFF
+        whitelist: [ ]
+
+# ===== 数据库设置（仅每日限制使用，跨服共享时启用）=====
+database:
+    daily-limit:
+        enabled: false
+        host: "127.0.0.1"
+        port: 3306
+        database: "mmoitems"
+        user: "root"
+        password: ""
+        table: "mmoitems_daily_limit"
+        pool-size: 5
+        # 追加到 JDBC URL 的参数
+        params: "useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
 
 stats-displaying:
 

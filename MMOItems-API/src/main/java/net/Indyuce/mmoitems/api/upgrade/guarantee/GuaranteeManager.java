@@ -39,6 +39,11 @@ public class GuaranteeManager implements Reloadable {
     private boolean resetOnSuccess;
 
     /**
+     * 失败计数过期小时数（<=0 表示不过期）
+     */
+    private int expireHours;
+
+    /**
      * 创建保底管理器并加载配置
      */
     public GuaranteeManager() {
@@ -54,12 +59,14 @@ public class GuaranteeManager implements Reloadable {
             this.enabled = true;
             this.threshold = 30;
             this.resetOnSuccess = true;
+            this.expireHours = 0;
             return;
         }
 
         this.enabled = config.getBoolean("enabled", true);
         this.threshold = config.getInt("threshold", 30);
         this.resetOnSuccess = config.getBoolean("reset-on-success", true);
+        this.expireHours = config.getInt("expire-hours", 0);
     }
 
     /**
@@ -97,7 +104,11 @@ public class GuaranteeManager implements Reloadable {
      */
     @Nullable
     public GuaranteeData getData(@Nullable ItemStack item) {
-        return GuaranteeData.fromItem(item);
+        GuaranteeData data = GuaranteeData.fromItem(item);
+        if (data != null) {
+            data.applyExpiration(expireHours);
+        }
+        return data;
     }
 
     /**
@@ -133,10 +144,9 @@ public class GuaranteeManager implements Reloadable {
         if (data == null) {
             data = new GuaranteeData();
         }
-
+        data.applyExpiration(expireHours);
         data.incrementFails();
         data.applyToItem(nbtItem);
-
         return data;
     }
 
@@ -155,12 +165,11 @@ public class GuaranteeManager implements Reloadable {
         if (data == null) {
             data = new GuaranteeData();
         }
-
+        data.applyExpiration(expireHours);
         if (resetOnSuccess) {
             data.resetFails();
         }
         data.applyToItem(nbtItem);
-
         return data;
     }
 

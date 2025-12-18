@@ -210,11 +210,27 @@ public class UpgradeResult {
      * @return 失败结果实例
      */
     public static UpgradeResult failureProtected(int consumedStones, @NotNull PenaltyResult interceptedPenalty) {
+        String message;
+        switch (interceptedPenalty) {
+            case DOWNGRADE:
+                message = "触发了掉级惩罚，强化保护石已生效";
+                break;
+            case BREAK:
+                message = "触发了碎裂惩罚，强化保护石已生效";
+                break;
+            case DESTROY:
+                message = "触发了销毁惩罚，强化保护石已生效";
+                break;
+            default:
+                message = "强化失败，但保护物品拦截了惩罚";
+                break;
+        }
+
         return new UpgradeResult(
                 Status.FAILURE_PROTECTED,
                 null,
                 PenaltyResult.PROTECTED,
-                "强化失败，但保护物品拦截了惩罚",
+                message,
                 -1,
                 -1,
                 consumedStones,

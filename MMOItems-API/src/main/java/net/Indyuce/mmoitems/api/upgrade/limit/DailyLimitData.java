@@ -2,155 +2,105 @@ package net.Indyuce.mmoitems.api.upgrade.limit;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
 /**
- * 玩家每日强化限制数据
- * <p>
- * 存储玩家当天的强化使用次数，每日自动重置。
- * </p>
- *
- * @author MMOItems Team
- * @since 强化系统扩展
+ * 玩家每日强化限制数据（支持指定小时重置 + 持久化时间戳）
  */
 public class DailyLimitData {
 
     private final UUID playerUuid;
     private int usedAttempts;
-    private LocalDate lastResetDate;
+    private long lastResetEpochMillis;
 
     /**
-     * 创建新的每日限制数据
-     *
-     * @param playerUuid 玩家 UUID
+     * 创建新的每日限制数据（默认从当前窗口开始计数）
      */
     public DailyLimitData(@NotNull UUID playerUuid) {
-        this.playerUuid = playerUuid;
-        this.usedAttempts = 0;
-        this.lastResetDate = LocalDate.now();
+        this(playerUuid, 0, System.currentTimeMillis());
     }
 
     /**
-     * 从已有数据恢复
-     *
-     * @param playerUuid   玩家 UUID
-     * @param usedAttempts 已使用次数
-     * @param resetDate    上次重置日期
+     * 从持久化数据恢复
      */
-    public DailyLimitData(@NotNull UUID playerUuid, int usedAttempts, @NotNull LocalDate resetDate) {
+    public DailyLimitData(@NotNull UUID playerUuid, int usedAttempts, long lastResetEpochMillis) {
         this.playerUuid = playerUuid;
         this.usedAttempts = usedAttempts;
-        this.lastResetDate = resetDate;
+        this.lastResetEpochMillis = lastResetEpochMillis;
     }
 
-    /**
-     * 获取玩家 UUID
-     *
-     * @return 玩家 UUID
-     */
     @NotNull
     public UUID getPlayerUuid() {
         return playerUuid;
     }
 
     /**
-     * 获取今日已使用的强化次数
-     * <p>
-     * 如果日期已变更，会自动重置计数
-     * </p>
-     *
-     * @return 已使用次数
+     * 获取今日已使用次数（会按 resetHour 检查并自动重置）
      */
-    public int getUsedAttempts() {
-        checkAndResetIfNeeded();
+    public int getUsedAttempts(int resetHour) {
+        checkAndResetIfNeeded(resetHour);
         return usedAttempts;
     }
 
     /**
-     * 获取上次重置日期
-     *
-     * @return 上次重置的日期
+     * 原始已用次数（不触发重置），用于持久化。
      */
-    @NotNull
-    public LocalDate getLastResetDate() {
-        return lastResetDate;
+    public int getUsedAttemptsRaw() {
+        return usedAttempts;
+    }
+
+    /**
+     * 上次重置时间戳（毫秒）
+     */
+    public long getLastResetEpochMillis() {
+        return lastResetEpochMillis;
     }
 
     /**
      * 增加使用次数
      */
-    public void incrementUsed() {
-        checkAndResetIfNeeded();
+    public void incrementUsed(int resetHour) {
+        checkAndResetIfNeeded(resetHour);
         this.usedAttempts++;
     }
 
     /**
      * 设置使用次数
-     *
-     * @param attempts 使用次数
      */
-    public void setUsedAttempts(int attempts) {
+    public void setUsedAttempts(int attempts, int resetHour) {
+        checkAndResetIfNeeded(resetHour);
         this.usedAttempts = Math.max(0, attempts);
     }
 
     /**
-     * 手动重置今日次数
+     * 手动重置到当前窗口
      */
-    public void reset() {
+    public void reset(int resetHour) {
         this.usedAttempts = 0;
-        this.lastResetDate = LocalDate.now();
+        this.lastResetEpochMillis = currentWindowStart(resetHour);
     }
 
     /**
-     * 检查是否需要自动重置（跨天）
+     * 是否还有剩余次数
      */
-    private void checkAndResetIfNeeded() {
-        LocalDate today = LocalDate.now();
-        if (!today.equals(lastResetDate)) {
-            reset();
-        }
+    public boolean canUpgrade(int maxAttempts, int resetHour) {
+        return getUsedAttempts(resetHour) < maxAttempts;
     }
 
     /**
-     * 检查是否可以继续强化
-     *
-     * @param maxAttempts 每日最大次数
-     * @return 如果还有剩余次数返回 true
+     * 获取剩余次数
      */
-    public boolean canUpgrade(int maxAttempts) {
-        return getUsedAttempts() < maxAttempts;
+    public int getRemainingAttempts(int maxAttempts, int resetHour) {
+        return Math.max(0, maxAttempts - getUsedAttempts(resetHour));
     }
 
     /**
-     * 获取剩余可用次数
-     *
-     * @param maxAttempts 每日最大次数
-     * @return 剩余次数
-     */
-    public int getRemainingAttempts(int maxAttempts) {
-        return Math.max(0, maxAttempts - getUsedAttempts());
-    }
-
-    /**
-     * 获取距离下次重置的秒数
-     *
-     * @param resetHour 重置时间（小时，0-23）
-     * @return 距离下次重置的秒数
+     * 距离下次重置的秒数
      */
     public long getSecondsUntilReset(int resetHour) {
         ZonedDateTime now = ZonedDateTime.now();
-        ZonedDateTime nextReset = now.toLocalDate()
-                .atTime(resetHour, 0)
-                .atZone(ZoneId.systemDefault());
-
-        // 如果今天的重置时间已过，计算到明天的重置时间
-        if (now.isAfter(nextReset)) {
-            nextReset = nextReset.plusDays(1);
-        }
-
+        ZonedDateTime nextReset = computeWindowStart(now, resetHour).plusDays(1);
         return nextReset.toEpochSecond() - now.toEpochSecond();
     }
 
@@ -159,7 +109,34 @@ public class DailyLimitData {
         return "DailyLimitData{" +
                 "playerUuid=" + playerUuid +
                 ", usedAttempts=" + usedAttempts +
-                ", lastResetDate=" + lastResetDate +
+                ", lastResetEpochMillis=" + lastResetEpochMillis +
                 '}';
+    }
+
+    private void checkAndResetIfNeeded(int resetHour) {
+        long windowStart = currentWindowStart(resetHour);
+        if (lastResetEpochMillis < windowStart) {
+            usedAttempts = 0;
+            lastResetEpochMillis = windowStart;
+        }
+    }
+
+    /**
+     * 当前重置窗口起点（毫秒）
+     */
+    private long currentWindowStart(int resetHour) {
+        return computeWindowStart(ZonedDateTime.now(), resetHour).toInstant().toEpochMilli();
+    }
+
+    /**
+     * 计算给定时间点所在的窗口起点：
+     * 若当前时刻早于当日 resetHour，则窗口起点为前一日的 resetHour，否则为当日 resetHour。
+     */
+    private ZonedDateTime computeWindowStart(ZonedDateTime now, int resetHour) {
+        ZonedDateTime start = now.withHour(resetHour).withMinute(0).withSecond(0).withNano(0);
+        if (now.getHour() < resetHour) {
+            start = start.minusDays(1);
+        }
+        return start;
     }
 }

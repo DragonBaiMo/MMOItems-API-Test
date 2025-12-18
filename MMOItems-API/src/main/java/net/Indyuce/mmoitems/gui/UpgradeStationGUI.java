@@ -12,7 +12,6 @@ import net.Indyuce.mmoitems.api.item.mmoitem.LiveMMOItem;
 import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
 import net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem;
 import net.Indyuce.mmoitems.api.upgrade.*;
-import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeManager;
 import net.Indyuce.mmoitems.api.upgrade.limit.DailyLimitManager;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.stat.data.UpgradeData;
@@ -41,9 +40,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 强化工作台 GUI
@@ -107,6 +103,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
     private final Player player;
     private final Inventory inventory;
     private final int inventorySize;
+    private final UpgradeStationDisplay display;
     private boolean registered = false;
     private boolean processing = false; // 防止并发操作
     private BukkitTask updateTask;
@@ -130,6 +127,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
 
         String title = color(getConfig().getString("gui.title", "&5&l强化工作台"));
         this.inventory = Bukkit.createInventory(this, inventorySize, title);
+        this.display = new UpgradeStationDisplay(this);
 
         setupInventory();
     }
@@ -165,7 +163,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         }
     }
 
-    private FileConfiguration getConfig() {
+    FileConfiguration getConfig() {
         return config;
     }
 
@@ -230,7 +228,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
     /**
      * 初始化 GUI 布局
      */
-        private void setupInventory() {
+    private void setupInventory() {
         // 填充背景
         ItemStack filler = createConfigItem("items.filler", Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < inventorySize; i++) {
@@ -276,7 +274,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         }
 
         // 初始更新
-        updateAllDisplays();
+        display.updateAllDisplays();
     }
 
     private void setSlotEmpty(int slot) {
@@ -285,7 +283,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         }
     }
 
-    private void setSlotItem(int slot, ItemStack item) {
+    void setSlotItem(int slot, ItemStack item) {
         if (slot < 0 || slot >= inventorySize) return;
         if (item == null || item.getType() == Material.AIR) {
             inventory.setItem(slot, null);
@@ -371,7 +369,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
     /**
      * 从配置创建物品
      */
-    private ItemStack createConfigItem(String path, Material defaultMaterial, String defaultName) {
+    ItemStack createConfigItem(String path, Material defaultMaterial, String defaultName) {
         ConfigurationSection section = getConfig().getConfigurationSection(path);
 
         Material material = defaultMaterial;
@@ -412,648 +410,9 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return item;
     }
 
-    // ===== 更新显示方法 =====
+    // ===== 辅助数值 =====
 
-    /**
-     * 更新所有显示内容
-     */
-    public void updateAllDisplays() {
-        updatePreview();
-        updateProgressBar();
-        updateInfoPanel();
-        updateUpgradeButton();
-    }
-
-    /**
-     * 更新预览
-     */
-    private void updatePreview() {
-        ItemStack targetItem = inventory.getItem(slotTargetItem);
-
-        ItemStack previewItem;
-
-        if (targetItem == null || targetItem.getType() == Material.AIR) {
-            previewItem = createConfigItem("items.preview-waiting", Material.ARROW, "&f&l→ 强化 →");
-        } else {
-            NBTItem targetNBT = NBTItem.get(targetItem);
-            if (!targetNBT.hasType()) {
-                previewItem = createPreviewItem(Material.BARRIER, "&c非MMOItems物品", Arrays.asList("&7该物品不能强化"));
-            } else {
-                VolatileMMOItem mmoItem = new VolatileMMOItem(targetNBT);
-                if (!mmoItem.hasData(ItemStats.UPGRADE)) {
-                    previewItem = createPreviewItem(Material.BARRIER, "&c物品不可强化", Arrays.asList("&7该物品没有配置强化属性"));
-                } else {
-                    UpgradeData data = (UpgradeData) mmoItem.getData(ItemStats.UPGRADE);
-                    previewItem = createDetailedPreview(targetItem, data);
-                }
-            }
-        }
-
-        setSlotItem(slotPreview, previewItem);
-    }
-
-    private ItemStack createPreviewItem(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(color(name));
-            List<String> coloredLore = new ArrayList<>();
-            for (String line : lore) {
-                coloredLore.add(color(line));
-            }
-            meta.setLore(coloredLore);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    private ItemStack createDetailedPreview(ItemStack targetItem, UpgradeData data) {
-        int currentLevel = data.getLevel();
-        int maxLevel = data.getMax();
-        boolean atMax = maxLevel > 0 && currentLevel >= maxLevel;
-
-        // 已达最高等级
-        if (atMax) {
-            List<String> lore = new ArrayList<>();
-            lore.add("&7");
-            lore.add(getMessage("item-name", "&f物品: {name}").replace("{name}", MMOUtils.getDisplayName(targetItem)));
-            lore.add("&7");
-            lore.add(getMessage("current-level", "&e当前等级: &f+{level}").replace("{level}", String.valueOf(currentLevel)));
-            lore.add("&7");
-            lore.add("&c已达到强化上限，无法继续强化");
-            return createPreviewItem(Material.STRUCTURE_VOID, getMessage("preview-max-level", "&6&l已达最大等级"), lore);
-        }
-
-        // 尝试构建真实的强化后预览物品
-        try {
-            return buildUpgradedPreviewItem(targetItem, data, currentLevel, maxLevel);
-        } catch (Exception e) {
-            // 构建失败时回退到简单预览
-            return createSimplePreview(targetItem, data, currentLevel, maxLevel);
-        }
-    }
-
-    /**
-     * 构建真实的强化后预览物品
-     * <p>
-     * 克隆当前物品，模拟强化到 +1，展示完整的强化后属性，
-     * 并在属性行中直接嵌入变化标记（如 +0.8）
-     * </p>
-     */
-    private ItemStack buildUpgradedPreviewItem(ItemStack targetItem, UpgradeData data, int currentLevel, int maxLevel) {
-        NBTItem nbt = NBTItem.get(targetItem);
-
-        // 1. 获取原始物品的 Lore（强化前）
-        ItemMeta originalMeta = targetItem.getItemMeta();
-        List<String> originalLore = (originalMeta != null && originalMeta.hasLore())
-                ? new ArrayList<>(originalMeta.getLore()) : new ArrayList<>();
-
-        // 2. 创建 LiveMMOItem 以读取所有属性
-        LiveMMOItem originalItem = new LiveMMOItem(nbt);
-
-        // 3. 克隆物品用于预览
-        MMOItem previewMMO = originalItem.clone();
-
-        // 4. 获取强化模板
-        UpgradeTemplate template = data.getTemplate();
-        if (template == null) {
-            throw new RuntimeException("强化模板不存在: " + data.getTemplateName());
-        }
-
-        // 5. 模拟强化到 +1
-        int targetLevel = currentLevel + 1;
-        template.upgradeTo(previewMMO, targetLevel);
-
-        // 6. 构建预览物品
-        ItemStack preview = previewMMO.newBuilder().buildNBT().toItem();
-
-        // 7. 获取强化后物品的 Lore
-        ItemMeta previewMeta = preview.getItemMeta();
-        if (previewMeta == null) {
-            return preview;
-        }
-
-        List<String> upgradedLore = previewMeta.hasLore()
-                ? new ArrayList<>(previewMeta.getLore()) : new ArrayList<>();
-
-        // 8. 对比 Lore，在变化的属性行后面添加变化标记
-        List<String> markedLore = injectChangeMarkers(originalLore, upgradedLore);
-
-        // 9. 构建最终预览 Lore
-        String originalName = previewMeta.hasDisplayName() ? previewMeta.getDisplayName() : MMOUtils.getDisplayName(targetItem);
-        previewMeta.setDisplayName(color(getMessage("preview-title", "&e⚡ 强化预览 ⚡")));
-
-        List<String> finalLore = new ArrayList<>();
-        finalLore.add(color("&7"));
-        finalLore.add(color(getMessage("preview-original-item", "&f原物品: {name}").replace("{name}", originalName)));
-        finalLore.add(color("&7"));
-
-        // 等级变化
-        finalLore.add(color(getMessage("current-level", "&e当前等级: &f+{level}").replace("{level}", String.valueOf(currentLevel))));
-        finalLore.add(color(getMessage("after-level", "&a强化后: &f+{level}").replace("{level}", String.valueOf(targetLevel))));
-        if (maxLevel > 0) {
-            finalLore.add(color(getMessage("max-level", "&7最大等级: &f+{level}").replace("{level}", String.valueOf(maxLevel))));
-        }
-
-        // 直达石效果
-        double directChance = getAuxiliaryDirectUpChance();
-        int directLevels = getAuxiliaryDirectUpLevels();
-        if (directChance > 0 && directLevels > 0) {
-            finalLore.add(color("&7"));
-            finalLore.add(color(getMessage("direct-effect", "&d✦ 直达石效果:")));
-            finalLore.add(color(getMessage("direct-chance", "&d  {chance}% 概率直接到 +{level}")
-                    .replace("{chance}", String.format("%.0f", directChance))
-                    .replace("{level}", String.valueOf(targetLevel + directLevels))));
-        }
-
-        // 分隔线 + 强化后完整属性（带变化标记）
-        finalLore.add(color("&7"));
-        finalLore.add(color(getMessage("preview-separator", "&8─────────────────")));
-        finalLore.add(color(getMessage("preview-full-stats", "&7&o强化后完整属性:")));
-        finalLore.addAll(markedLore);
-
-        previewMeta.setLore(finalLore);
-        preview.setItemMeta(previewMeta);
-
-        return preview;
-    }
-
-    /**
-     * 用于匹配 Lore 行中数值的正则表达式
-     * 匹配格式如：▻ 7.8、: 100、+5%、-10% 等
-     */
-    private static final Pattern NUMBER_PATTERN = Pattern.compile("([▻:：]\\s*[+-]?)([\\d.]+)(%?)");
-
-    /**
-     * 对比原始 Lore 和强化后 Lore，在数值变化的行后面添加变化标记
-     *
-     * @param originalLore 原始物品 Lore
-     * @param upgradedLore 强化后物品 Lore
-     * @return 带有变化标记的 Lore
-     */
-    private List<String> injectChangeMarkers(List<String> originalLore, List<String> upgradedLore) {
-        List<String> result = new ArrayList<>();
-
-        // 检查是否启用变化标记
-        boolean enabled = getConfig().getBoolean("change-marker.enabled", true);
-        if (!enabled) {
-            return new ArrayList<>(upgradedLore);
-        }
-
-        // 读取配置
-        double minChange = getConfig().getDouble("change-marker.min-change", 0.01);
-
-        // 构建原始 Lore 的数值映射（按行首文本作为键）
-        Map<String, Double> originalValues = new LinkedHashMap<>();
-        for (String line : originalLore) {
-            String key = extractLineKey(line);
-            Double value = extractFirstNumber(line);
-            if (key != null && value != null) {
-                originalValues.put(key, value);
-            }
-        }
-
-        // 遍历强化后 Lore，对比并添加变化标记
-        for (String line : upgradedLore) {
-            String key = extractLineKey(line);
-            Double newValue = extractFirstNumber(line);
-
-            if (key != null && newValue != null && originalValues.containsKey(key)) {
-                Double oldValue = originalValues.get(key);
-                double diff = newValue - oldValue;
-
-                // 如果有变化，在行尾添加变化标记
-                if (Math.abs(diff) >= minChange) {
-                    String changeMarker = formatChangeMarker(diff);
-                    result.add(line + changeMarker);
-                    continue;
-                }
-            }
-
-            // 无变化或无法对比的行，直接添加
-            result.add(line);
-        }
-
-        return result;
-    }
-
-    /**
-     * 提取 Lore 行的键（用于匹配同一属性）
-     * 取行首到第一个数值之前的文本（去除颜色代码后）
-     */
-    private String extractLineKey(String line) {
-        if (line == null || line.isEmpty()) return null;
-
-        // 去除颜色代码
-        String stripped = ChatColor.stripColor(line);
-        if (stripped == null || stripped.isEmpty()) return null;
-
-        // 找到第一个数字的位置
-        Matcher matcher = NUMBER_PATTERN.matcher(stripped);
-        if (matcher.find()) {
-            // 返回数字之前的部分作为键
-            String key = stripped.substring(0, matcher.start()).trim();
-            // 去除末尾的符号
-            key = key.replaceAll("[▻:：\\s]+$", "").trim();
-            return key.isEmpty() ? null : key;
-        }
-
-        return null;
-    }
-
-    /**
-     * 从 Lore 行中提取第一个数值
-     */
-    private Double extractFirstNumber(String line) {
-        if (line == null) return null;
-
-        String stripped = ChatColor.stripColor(line);
-        if (stripped == null) return null;
-
-        Matcher matcher = NUMBER_PATTERN.matcher(stripped);
-        if (matcher.find()) {
-            try {
-                return Double.parseDouble(matcher.group(2));
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 格式化变化标记（从配置读取格式）
-     */
-    private String formatChangeMarker(double diff) {
-        // 读取配置
-        String format = getConfig().getString("change-marker.format", " &8({color}{sign}{value}&8)");
-        String positiveColor = getConfig().getString("change-marker.positive-color", "&a");
-        String negativeColor = getConfig().getString("change-marker.negative-color", "&c");
-        int decimalPlaces = getConfig().getInt("change-marker.decimal-places", 1);
-
-        // 确定颜色和符号
-        String colorCode = diff > 0 ? positiveColor : negativeColor;
-        String sign = diff > 0 ? "+" : "";
-
-        // 格式化数值
-        String valueFormat = "%." + decimalPlaces + "f";
-        String value = String.format(valueFormat, diff);
-
-        // 应用格式模板
-        String result = format
-                .replace("{color}", colorCode)
-                .replace("{sign}", sign)
-                .replace("{value}", value);
-
-        return color(result);
-    }
-
-    /**
-     * 简单预览（构建失败时的回退方案）
-     */
-    private ItemStack createSimplePreview(ItemStack targetItem, UpgradeData data, int currentLevel, int maxLevel) {
-        List<String> lore = new ArrayList<>();
-        lore.add("&7");
-
-        String itemName = MMOUtils.getDisplayName(targetItem);
-        lore.add(getMessage("item-name", "&f物品: {name}").replace("{name}", itemName));
-        lore.add("&7");
-
-        lore.add(getMessage("current-level", "&e当前等级: &f+{level}").replace("{level}", String.valueOf(currentLevel)));
-        lore.add(getMessage("after-level", "&a强化后: &f+{level}").replace("{level}", String.valueOf(currentLevel + 1)));
-        if (maxLevel > 0) {
-            lore.add(getMessage("max-level", "&7最大等级: &f+{level}").replace("{level}", String.valueOf(maxLevel)));
-        }
-
-        // 直达石效果
-        double directChance = getAuxiliaryDirectUpChance();
-        int directLevels = getAuxiliaryDirectUpLevels();
-        if (directChance > 0 && directLevels > 0) {
-            lore.add("&7");
-            lore.add(getMessage("direct-effect", "&d✦ 直达石效果:"));
-            lore.add(getMessage("direct-chance", "&d  {chance}% 概率直接到 +{level}")
-                    .replace("{chance}", String.format("%.0f", directChance))
-                    .replace("{level}", String.valueOf(currentLevel + 1 + directLevels)));
-        }
-
-        lore.add("&7");
-        lore.add("&8(无法生成完整预览)");
-
-        return createPreviewItem(Material.NETHER_STAR, "&e&l强化预览", lore);
-    }
-
-    /**
-     * 更新进度条
-     */
-    private void updateProgressBar() {
-        double successRate = calculateActualSuccessRate();
-        int filledSlots = (int) Math.round(successRate * progressLength);
-
-        // 进度条标签
-        setSlotItem(slotProgressStart - 1, createProgressLabel(successRate));
-
-        // 进度条
-        for (int i = 0; i < progressLength; i++) {
-            int slot = slotProgressStart + i;
-            if (slot >= inventorySize) break;
-
-            Material material;
-            String colorCode;
-
-            if (i < filledSlots) {
-                if (successRate >= 0.8) {
-                    material = getMaterial("progress-bar.high.material", Material.LIME_STAINED_GLASS_PANE);
-                    colorCode = getConfig().getString("progress-bar.high.color", "&a");
-                } else if (successRate >= 0.5) {
-                    material = getMaterial("progress-bar.medium.material", Material.YELLOW_STAINED_GLASS_PANE);
-                    colorCode = getConfig().getString("progress-bar.medium.color", "&e");
-                } else if (successRate >= 0.3) {
-                    material = getMaterial("progress-bar.low.material", Material.ORANGE_STAINED_GLASS_PANE);
-                    colorCode = getConfig().getString("progress-bar.low.color", "&6");
-                } else {
-                    material = getMaterial("progress-bar.danger.material", Material.RED_STAINED_GLASS_PANE);
-                    colorCode = getConfig().getString("progress-bar.danger.color", "&c");
-                }
-            } else {
-                material = getMaterial("progress-bar.empty.material", Material.WHITE_STAINED_GLASS_PANE);
-                colorCode = getConfig().getString("progress-bar.empty.color", "&8");
-            }
-
-            ItemStack pane = new ItemStack(material);
-            ItemMeta meta = pane.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(color(colorCode + "█"));
-                List<String> lore = new ArrayList<>();
-                String rateMsg = getMessage("success-rate", "&7成功率: {color}{rate}%")
-                        .replace("{color}", getSuccessColor(successRate))
-                        .replace("{rate}", String.format("%.1f", successRate * 100));
-                lore.add(color(rateMsg));
-                meta.setLore(lore);
-                pane.setItemMeta(meta);
-            }
-            inventory.setItem(slot, pane);
-        }
-    }
-
-    private ItemStack createProgressLabel(double successRate) {
-        ItemStack item = createConfigItem("items.progress-label", Material.EXPERIENCE_BOTTLE, "&f成功率");
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            String colorCode = getSuccessColor(successRate);
-            meta.setDisplayName(color("&f成功率: " + colorCode + String.format("%.1f%%", successRate * 100)));
-
-            List<String> lore = new ArrayList<>();
-            lore.add(color("&7"));
-
-            // 基础成功率
-            double baseSuccess = getBaseSuccessFromStone();
-            lore.add(color(getMessage("base-rate", "&7基础成功率: &f{rate}%")
-                    .replace("{rate}", String.format("%.1f", baseSuccess * 100))));
-
-            // 衰减后
-            double decayedSuccess = getDecayedSuccessRate();
-            if (decayedSuccess < baseSuccess - 0.001) {
-                lore.add(color(getMessage("decayed-rate", "&7等级衰减后: &f{rate}%")
-                        .replace("{rate}", String.format("%.1f", decayedSuccess * 100))));
-            }
-
-            // 幸运石加成
-            double chanceBonus = getAuxiliaryChanceBonus();
-            if (chanceBonus > 0) {
-                lore.add(color(getMessage("lucky-bonus", "&a× 幸运石: &f×(1+{rate}%)")
-                        .replace("{rate}", String.format("%.1f", chanceBonus))));
-            }
-
-            // 保底
-            ItemStack targetItem = inventory.getItem(slotTargetItem);
-            if (targetItem != null && targetItem.getType() != Material.AIR) {
-                GuaranteeManager gm = MMOItems.plugin.getUpgrades().getGuaranteeManager();
-                if (gm != null && gm.isEnabled()) {
-                    int fails = gm.getConsecutiveFails(targetItem);
-                    int threshold = gm.getThreshold();
-                    if (fails > 0) {
-                        lore.add(color("&7"));
-                        lore.add(color(getMessage("guarantee-progress", "&6保底进度: &f{current}/{max}")
-                                .replace("{current}", String.valueOf(fails))
-                                .replace("{max}", String.valueOf(threshold))));
-                        if (gm.isGuaranteed(targetItem)) {
-                            lore.add(color(getMessage("guarantee-triggered", "&6★ 已触发保底！必定成功 ★")));
-                        }
-                    }
-                }
-            }
-
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    /**
-     * 更新信息面板
-     */
-    private void updateInfoPanel() {
-        ItemStack item = createConfigItem("items.info-panel", Material.BOOK, "&e&l强化信息");
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            List<String> lore = new ArrayList<>();
-
-            // 每日限制
-            DailyLimitManager dlm = MMOItems.plugin.getUpgrades().getDailyLimitManager();
-            if (dlm != null && dlm.isEnabled()) {
-                int used = dlm.getUsedAttempts(player);
-                int max = dlm.getMaxAttempts(player);
-                int remaining = max - used;
-
-                lore.add(color("&7"));
-                lore.add(color(getMessage("daily-limit", "&e今日强化次数:")));
-
-                String remainColor = remaining > 10 ? "&a" : (remaining > 0 ? "&e" : "&c");
-                lore.add(color(getMessage("daily-used", "  &7已用: &f{used}/{max}")
-                        .replace("{used}", String.valueOf(used))
-                        .replace("{max}", String.valueOf(max))));
-                lore.add(color(getMessage("daily-remaining", "  &7剩余: {color}{remaining} 次")
-                        .replace("{color}", remainColor)
-                        .replace("{remaining}", String.valueOf(remaining))));
-            }
-
-            // 惩罚信息
-            ItemStack targetItem = inventory.getItem(slotTargetItem);
-            if (targetItem != null && targetItem.getType() != Material.AIR) {
-                NBTItem targetNBT = NBTItem.get(targetItem);
-                if (targetNBT.hasType()) {
-                    VolatileMMOItem mmoItem = new VolatileMMOItem(targetNBT);
-                    if (mmoItem.hasData(ItemStats.UPGRADE)) {
-                        UpgradeData data = (UpgradeData) mmoItem.getData(ItemStats.UPGRADE);
-                        int currentLevel = data.getLevel();
-
-                        lore.add(color("&7"));
-                        lore.add(color(getMessage("risk-title", "&c⚠ 失败风险:")));
-
-                        boolean hasPenalty = false;
-                        double protection = getAuxiliaryProtection();
-
-                        // 碎裂风险
-                        if (data.isInBreakRange(currentLevel) && data.getBreakChance() > 0) {
-                            double breakChance = data.getBreakChance() * 100;
-                            if (protection > 0) {
-                                breakChance *= (1 - protection / 100.0);
-                            }
-                            lore.add(color(getMessage("risk-break", "  &c☠ 碎裂: {rate}%")
-                                    .replace("{rate}", String.format("%.1f", breakChance))));
-                            hasPenalty = true;
-                        }
-
-                        // 掉级风险
-                        if (data.isInDowngradeRange(currentLevel) && data.getDowngradeChance() > 0) {
-                            double downgradeChance = data.getDowngradeChance() * 100;
-                            if (protection > 0) {
-                                downgradeChance *= (1 - protection / 100.0);
-                            }
-                            lore.add(color(getMessage("risk-downgrade", "  &e↓ 掉级: {rate}% (-{amount}级)")
-                                    .replace("{rate}", String.format("%.1f", downgradeChance))
-                                    .replace("{amount}", String.valueOf(data.getDowngradeAmount()))));
-                            hasPenalty = true;
-                        }
-
-                        // 销毁
-                        if (data.destroysOnFail()) {
-                            lore.add(color(getMessage("risk-destroy", "  &c✖ 失败销毁物品")));
-                            hasPenalty = true;
-                        }
-
-                        if (!hasPenalty) {
-                            lore.add(color(getMessage("risk-none", "  &a✓ 当前等级无惩罚")));
-                        }
-
-                        // 保护石效果
-                        if (protection > 0) {
-                            lore.add(color("&7"));
-                            lore.add(color(getMessage("protection-effect", "&b✦ 保护石效果:")));
-                            lore.add(color(getMessage("protection-value", "  &b惩罚概率 -{rate}%")
-                                    .replace("{rate}", String.format("%.0f", protection))));
-                        }
-                    }
-                }
-            } else {
-                lore.add(color("&7"));
-                lore.add(color("&7放入物品查看详细信息"));
-            }
-
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        setSlotItem(slotInfoPanel, item);
-    }
-
-    /**
-     * 更新强化按钮
-     */
-    private void updateUpgradeButton() {
-        boolean canUpgrade = canPerformUpgrade();
-        ItemStack button;
-
-        if (processing) {
-            button = createConfigItem("items.upgrade-button-cooldown", Material.GRAY_CONCRETE, "&7&l请稍候...");
-        } else if (canUpgrade) {
-            button = createConfigItem("items.upgrade-button-enabled", Material.LIME_CONCRETE, "&a&l✦ 点击强化 ✦");
-        } else {
-            button = createUpgradeButtonDisabled();
-        }
-
-        setSlotItem(slotUpgradeButton, button);
-    }
-
-    private ItemStack createUpgradeButtonDisabled() {
-        ItemStack item = createConfigItem("items.upgrade-button-disabled", Material.RED_CONCRETE, "&c&l✦ 无法强化 ✦");
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            List<String> lore = new ArrayList<>();
-            lore.add(color("&7"));
-            lore.addAll(getUpgradeBlockReasons());
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    // ===== 计算方法 =====
-
-    private double calculateActualSuccessRate() {
-        ItemStack targetItem = inventory.getItem(slotTargetItem);
-        if (targetItem == null || targetItem.getType() == Material.AIR) return 0;
-
-        NBTItem targetNBT = NBTItem.get(targetItem);
-        if (!targetNBT.hasType()) return 0;
-
-        VolatileMMOItem mmoItem = new VolatileMMOItem(targetNBT);
-        if (!mmoItem.hasData(ItemStats.UPGRADE)) return 0;
-
-        UpgradeData data = (UpgradeData) mmoItem.getData(ItemStats.UPGRADE);
-
-        // 保底检查
-        GuaranteeManager gm = MMOItems.plugin.getUpgrades().getGuaranteeManager();
-        if (gm != null && gm.isEnabled() && gm.isGuaranteed(targetItem)) {
-            return 1.0;
-        }
-
-        double baseSuccess = getBaseSuccessFromStone();
-
-        // 应用衰减
-        double actualSuccess = baseSuccess;
-        if (data.isDecayEnabled() && data.getDecayFactor() < 1.0) {
-            actualSuccess *= Math.pow(data.getDecayFactor(), data.getLevel());
-        }
-
-        // 应用幸运石（累乘口径：actualSuccess = actualSuccess * (1 + bonus/100)）
-        double chanceBonus = getAuxiliaryChanceBonus();
-        if (chanceBonus > 0) {
-            actualSuccess *= 1.0 + (chanceBonus / 100.0);
-        }
-
-        return Math.min(1.0, Math.max(0, actualSuccess));
-    }
-
-    private double getBaseSuccessFromStone() {
-        ItemStack stoneItem = inventory.getItem(slotUpgradeStone);
-        if (stoneItem == null || stoneItem.getType() == Material.AIR) return 1.0;
-
-        NBTItem stoneNBT = NBTItem.get(stoneItem);
-        VolatileMMOItem stoneMmo = new VolatileMMOItem(stoneNBT);
-        if (stoneMmo.hasData(ItemStats.UPGRADE)) {
-            UpgradeData stoneData = (UpgradeData) stoneMmo.getData(ItemStats.UPGRADE);
-            return stoneData.getSuccess();
-        }
-        return 1.0;
-    }
-
-    private double getDecayedSuccessRate() {
-        ItemStack targetItem = inventory.getItem(slotTargetItem);
-        if (targetItem == null || targetItem.getType() == Material.AIR) return 0;
-
-        NBTItem targetNBT = NBTItem.get(targetItem);
-        if (!targetNBT.hasType()) return 0;
-
-        VolatileMMOItem mmoItem = new VolatileMMOItem(targetNBT);
-        if (!mmoItem.hasData(ItemStats.UPGRADE)) return 0;
-
-        UpgradeData data = (UpgradeData) mmoItem.getData(ItemStats.UPGRADE);
-        double baseSuccess = getBaseSuccessFromStone();
-
-        if (data.isDecayEnabled() && data.getDecayFactor() < 1.0) {
-            return baseSuccess * Math.pow(data.getDecayFactor(), data.getLevel());
-        }
-        return baseSuccess;
-    }
-
-    private String getSuccessColor(double success) {
-        if (success >= 0.8) return "&a";
-        if (success >= 0.5) return "&e";
-        if (success >= 0.3) return "&6";
-        return "&c";
-    }
-
-    private double getAuxiliaryChanceBonus() {
+    double getAuxiliaryChanceBonus() {
         ItemStack luckyStone = inventory.getItem(slotLuckyStone);
         if (luckyStone == null || luckyStone.getType() == Material.AIR) return 0;
 
@@ -1064,7 +423,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return 0;
     }
 
-    private double getAuxiliaryProtection() {
+    double getAuxiliaryProtection() {
         ItemStack protectStone = inventory.getItem(slotProtectStone);
         if (protectStone == null || protectStone.getType() == Material.AIR) return 0;
 
@@ -1075,7 +434,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return 0;
     }
 
-    private double getAuxiliaryDirectUpChance() {
+    double getAuxiliaryDirectUpChance() {
         ItemStack directStone = inventory.getItem(slotDirectStone);
         if (directStone == null || directStone.getType() == Material.AIR) return 0;
 
@@ -1086,7 +445,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return 0;
     }
 
-    private int getAuxiliaryDirectUpLevels() {
+    int getAuxiliaryDirectUpLevels() {
         ItemStack directStone = inventory.getItem(slotDirectStone);
         if (directStone == null || directStone.getType() == Material.AIR) return 0;
 
@@ -1097,7 +456,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return 0;
     }
 
-    private boolean canPerformUpgrade() {
+    boolean canPerformUpgrade() {
         if (processing) return false;
 
         ItemStack targetItem = inventory.getItem(slotTargetItem);
@@ -1118,7 +477,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return isValidUpgradeStone(stoneItem, targetItem);
     }
 
-    private boolean isValidUpgradeStone(@Nullable ItemStack stone, @Nullable ItemStack target) {
+    boolean isValidUpgradeStone(@Nullable ItemStack stone, @Nullable ItemStack target) {
         if (stone == null || stone.getType() == Material.AIR) return false;
         if (target == null || target.getType() == Material.AIR) return false;
 
@@ -1139,39 +498,6 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         return MMOUtils.checkReference(stoneData.getReference(), targetData.getReference());
     }
 
-    private List<String> getUpgradeBlockReasons() {
-        List<String> reasons = new ArrayList<>();
-        ItemStack targetItem = inventory.getItem(slotTargetItem);
-        ItemStack stoneItem = inventory.getItem(slotUpgradeStone);
-
-        if (targetItem == null || targetItem.getType() == Material.AIR) {
-            reasons.add(color(getMessage("block-no-item", "&c• 请放入待强化物品")));
-        } else {
-            NBTItem nbt = NBTItem.get(targetItem);
-            if (!nbt.hasType()) {
-                reasons.add(color(getMessage("block-not-mmoitem", "&c• 物品不是 MMOItems 物品")));
-            } else {
-                VolatileMMOItem mmo = new VolatileMMOItem(nbt);
-                if (!mmo.hasData(ItemStats.UPGRADE)) {
-                    reasons.add(color(getMessage("block-not-upgradable", "&c• 物品不可强化")));
-                } else {
-                    UpgradeData data = (UpgradeData) mmo.getData(ItemStats.UPGRADE);
-                    if (!data.canLevelUp()) {
-                        reasons.add(color(getMessage("block-max-level", "&c• 已达最大等级")));
-                    }
-                }
-            }
-        }
-
-        if (stoneItem == null || stoneItem.getType() == Material.AIR) {
-            reasons.add(color(getMessage("block-no-stone", "&c• 请放入强化石")));
-        } else if (targetItem != null && !isValidUpgradeStone(stoneItem, targetItem)) {
-            reasons.add(color(getMessage("block-stone-mismatch", "&c• 强化石不匹配")));
-        }
-
-        return reasons;
-    }
-
     // ===== 强化执行 =====
 
     private void performUpgrade() {
@@ -1190,7 +516,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         // 标记处理中
         processing = true;
         UPGRADE_COOLDOWNS.put(player.getUniqueId(), System.currentTimeMillis());
-        updateUpgradeButton();
+        display.updateUpgradeButton();
 
         ItemStack targetItem = inventory.getItem(slotTargetItem);
         ItemStack stoneItem = inventory.getItem(slotUpgradeStone);
@@ -1207,7 +533,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         // 验证物品未被修改
         if (!validateItems()) {
             processing = false;
-            updateUpgradeButton();
+            display.updateUpgradeButton();
             playSound("sounds.deny");
             player.sendMessage(color(getMessage("item-state-invalid", "&c物品状态异常，请重新放入物品")));
             return;
@@ -1223,7 +549,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
             int used = dailyLimitManager.getUsedAttempts(player);
             int max = dailyLimitManager.getMaxAttempts(player);
             processing = false;
-            updateUpgradeButton();
+            display.updateUpgradeButton();
             playSound("sounds.deny");
             player.sendMessage(color(getMessage("daily-limit-reached", "&c今日强化次数已用尽 ({used}/{max})")
                     .replace("{used}", String.valueOf(used))
@@ -1234,7 +560,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         UpgradeTemplate template = targetData.getTemplate();
         if (template == null) {
             processing = false;
-            updateUpgradeButton();
+            display.updateUpgradeButton();
             playSound("sounds.deny");
             player.sendMessage(color(getMessage("template-not-found", "&c未找到强化模板: &f{template}")
                     .replace("{template}", String.valueOf(targetData.getTemplateName()))));
@@ -1265,7 +591,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         // 错误：不应消耗材料
         if (result.isError()) {
             processing = false;
-            updateUpgradeButton();
+            display.updateUpgradeButton();
             playSound("sounds.deny");
             player.sendMessage(color(getMessage("upgrade-error", "&c强化失败: &f{reason}")
                     .replace("{reason}", String.valueOf(result.getMessage()))));
@@ -1329,7 +655,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
         // 延迟解除处理状态
         Bukkit.getScheduler().runTaskLater(MMOItems.plugin, () -> {
             processing = false;
-            updateAllDisplays();
+            display.updateAllDisplays();
         }, 10L);
     }
 
@@ -1436,15 +762,15 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
 
     // ===== 工具方法 =====
 
-    private String color(String text) {
+    String color(String text) {
         return MythicLib.plugin.parseColors(text);
     }
 
-    private String getMessage(String key, String defaultValue) {
+    String getMessage(String key, String defaultValue) {
         return getConfig().getString("messages." + key, defaultValue);
     }
 
-    private Material getMaterial(String path, Material defaultMaterial) {
+    Material getMaterial(String path, Material defaultMaterial) {
         String matStr = getConfig().getString(path);
         if (matStr != null) {
             try {
@@ -1469,6 +795,64 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
             player.playSound(player.getLocation(), sound, volume, pitch);
         } catch (IllegalArgumentException ignored) {
         }
+    }
+
+    // ===== 只读访问器 =====
+
+    int getSlotTargetItem() {
+        return slotTargetItem;
+    }
+
+    int getSlotUpgradeStone() {
+        return slotUpgradeStone;
+    }
+
+    int getSlotPreview() {
+        return slotPreview;
+    }
+
+    int getSlotLuckyStone() {
+        return slotLuckyStone;
+    }
+
+    int getSlotProtectStone() {
+        return slotProtectStone;
+    }
+
+    int getSlotDirectStone() {
+        return slotDirectStone;
+    }
+
+    int getSlotUpgradeButton() {
+        return slotUpgradeButton;
+    }
+
+    int getSlotInfoPanel() {
+        return slotInfoPanel;
+    }
+
+    int getSlotCloseButton() {
+        return slotCloseButton;
+    }
+
+    int getSlotProgressStart() {
+        return slotProgressStart;
+    }
+
+    int getProgressLength() {
+        return progressLength;
+    }
+
+    int getInventorySize() {
+        return inventorySize;
+    }
+
+    Player getPlayer() {
+        return player;
+    }
+
+    boolean isProcessing() {
+        return processing;
     }
 
     @Override
@@ -1531,7 +915,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
                 return;
             }
             // 允许正常操作，但延迟更新
-            Bukkit.getScheduler().runTaskLater(MMOItems.plugin, this::updateAllDisplays, 1L);
+            Bukkit.getScheduler().runTaskLater(MMOItems.plugin, display::updateAllDisplays, 1L);
             return;
         }
 
@@ -1540,7 +924,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
             // 播放放入音效
             Bukkit.getScheduler().runTaskLater(MMOItems.plugin, () -> {
                 playSound("sounds.item-place");
-                updateAllDisplays();
+                display.updateAllDisplays();
             }, 1L);
             return;
         }
@@ -1579,7 +963,7 @@ public class UpgradeStationGUI implements InventoryHolder, Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTaskLater(MMOItems.plugin, this::updateAllDisplays, 1L);
+        Bukkit.getScheduler().runTaskLater(MMOItems.plugin, display::updateAllDisplays, 1L);
     }
 
     @EventHandler(priority = EventPriority.HIGH)

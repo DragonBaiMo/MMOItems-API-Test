@@ -3,8 +3,12 @@ package net.Indyuce.mmoitems.manager;
 import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.ConfigFile;
 import net.Indyuce.mmoitems.api.UpgradeTemplate;
+import net.Indyuce.mmoitems.api.upgrade.bonus.UpgradeChanceBonusCalculator;
+import net.Indyuce.mmoitems.api.upgrade.economy.UpgradeEconomyHandler;
 import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeManager;
 import net.Indyuce.mmoitems.api.upgrade.limit.DailyLimitManager;
+import net.Indyuce.mmoitems.api.upgrade.log.UpgradeLogManager;
+import net.Indyuce.mmoitems.api.upgrade.penalty.GlobalPenaltyConfig;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -33,6 +37,26 @@ public class UpgradeManager implements Reloadable {
 	 */
 	private DailyLimitManager dailyLimitManager;
 
+	/**
+	 * 经济消耗处理器
+	 */
+	private UpgradeEconomyHandler economyHandler;
+
+	/**
+	 * 全局惩罚梯度配置
+	 */
+	private GlobalPenaltyConfig globalPenaltyConfig;
+
+	/**
+	 * 概率加成计算器
+	 */
+	private UpgradeChanceBonusCalculator chanceBonusCalculator;
+
+	/**
+	 * 强化日志管理器
+	 */
+	private UpgradeLogManager logManager;
+
 	public UpgradeManager() {
 		reload();
 	}
@@ -59,6 +83,34 @@ public class UpgradeManager implements Reloadable {
 			dailyLimitManager = new DailyLimitManager();
 		} else {
 			dailyLimitManager.reload();
+		}
+
+		// 初始化或重载经济消耗处理器
+		if (economyHandler == null) {
+			economyHandler = new UpgradeEconomyHandler();
+		} else {
+			economyHandler.reload();
+		}
+
+		// 初始化或重载全局惩罚梯度配置
+		if (globalPenaltyConfig == null) {
+			globalPenaltyConfig = new GlobalPenaltyConfig();
+		} else {
+			globalPenaltyConfig.reload();
+		}
+
+		// 初始化或重载概率加成计算器
+		if (chanceBonusCalculator == null) {
+			chanceBonusCalculator = new UpgradeChanceBonusCalculator();
+		} else {
+			chanceBonusCalculator.reload();
+		}
+
+		// 初始化或重载日志管理器
+		if (logManager == null) {
+			logManager = new UpgradeLogManager();
+		} else {
+			logManager.reload();
 		}
 	}
 
@@ -100,5 +152,45 @@ public class UpgradeManager implements Reloadable {
 	@NotNull
 	public DailyLimitManager getDailyLimitManager() {
 		return dailyLimitManager;
+	}
+
+	/**
+	 * 获取经济消耗处理器
+	 *
+	 * @return 经济消耗处理器实例
+	 */
+	@Nullable
+	public UpgradeEconomyHandler getEconomyHandler() {
+		return economyHandler;
+	}
+
+	/**
+	 * 获取全局惩罚梯度配置
+	 *
+	 * @return 全局惩罚配置实例
+	 */
+	@NotNull
+	public GlobalPenaltyConfig getGlobalPenaltyConfig() {
+		return globalPenaltyConfig;
+	}
+
+	/**
+	 * 获取概率加成计算器
+	 *
+	 * @return 概率加成计算器实例
+	 */
+	@NotNull
+	public UpgradeChanceBonusCalculator getChanceBonusCalculator() {
+		return chanceBonusCalculator;
+	}
+
+	/**
+	 * 获取强化日志管理器
+	 *
+	 * @return 日志管理器实例
+	 */
+	@NotNull
+	public UpgradeLogManager getLogManager() {
+		return logManager;
 	}
 }

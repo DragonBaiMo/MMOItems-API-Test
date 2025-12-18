@@ -8,9 +8,15 @@ import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.UpgradeTemplate;
 import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
 import net.Indyuce.mmoitems.api.item.mmoitem.VolatileMMOItem;
+import net.Indyuce.mmoitems.api.upgrade.bonus.UpgradeChanceBonusCalculator;
+import net.Indyuce.mmoitems.api.upgrade.economy.UpgradeEconomyHandler;
+import net.Indyuce.mmoitems.api.upgrade.effects.UpgradeEffectsPlayer;
 import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeData;
 import net.Indyuce.mmoitems.api.upgrade.guarantee.GuaranteeManager;
 import net.Indyuce.mmoitems.api.upgrade.limit.DailyLimitManager;
+import net.Indyuce.mmoitems.api.upgrade.log.UpgradeLogEntry;
+import net.Indyuce.mmoitems.api.upgrade.log.UpgradeLogManager;
+import net.Indyuce.mmoitems.api.upgrade.penalty.GlobalPenaltyConfig;
 import net.Indyuce.mmoitems.api.util.message.Message;
 import net.Indyuce.mmoitems.stat.data.SoulboundData;
 import net.Indyuce.mmoitems.stat.data.UpgradeData;
@@ -87,6 +93,18 @@ public class UpgradeService {
             }
         }
 
+        // ========== 0.5 经济消耗检查（新增） ==========
+        UpgradeEconomyHandler economyHandler = MMOItems.plugin.getUpgrades().getEconomyHandler();
+        double economyCost = 0;
+        boolean economyEnabled = economyHandler != null && economyHandler.isEnabled();
+        if (economyEnabled) {
+            economyCost = economyHandler.getCost(targetData.getLevel());
+            if (economyCost > 0 && !economyHandler.canAfford(player, economyCost)) {
+                String formattedCost = economyHandler.format(economyCost);
+                return UpgradeResult.error("金币不足，需要 " + formattedCost);
+            }
+        }
+
         // 1. 验证强化模板
         UpgradeTemplate template = targetData.getTemplate();
         if (template == null) {
@@ -128,11 +146,28 @@ public class UpgradeService {
             }
         }
 
+        // ========== 4.5 执行经济扣款（新增） ==========
+        if (economyEnabled && economyCost > 0) {
+            UpgradeEconomyHandler.EconomyOperationResult withdrawResult = economyHandler.withdraw(player, economyCost);
+            if (!withdrawResult.isSuccess()) {
+                return UpgradeResult.error("扣款失败: " + withdrawResult.getErrorMessage());
+            }
+        }
+
         // 5. 计算实际成功率（含辅料加成）
         double actualSuccess = calculateActualSuccess(consumableData, targetData, context.getChanceModifier());
         // 应用辅料成功率加成（累乘口径：actualSuccess = actualSuccess * (1 + bonus/100) ...）
         if (context.getAuxiliaryChanceBonus() > 0) {
             actualSuccess *= 1.0 + (context.getAuxiliaryChanceBonus() / 100.0);
+        }
+
+        // ========== 5.2 全局概率加成（新增） ==========
+        UpgradeChanceBonusCalculator chanceBonusCalculator = MMOItems.plugin.getUpgrades().getChanceBonusCalculator();
+        if (chanceBonusCalculator.isEnabled()) {
+            double globalBonus = chanceBonusCalculator.calculateBonus(player, targetData.getLevel());
+            if (globalBonus > 0) {
+                actualSuccess *= 1.0 + (globalBonus / 100.0);
+            }
         }
 
         // ========== 5.5 保底机制检查（新增） ==========
@@ -144,7 +179,8 @@ public class UpgradeService {
                 guaranteeTriggered = true;
                 // 发送保底触发消息
                 Message.UPGRADE_GUARANTEE_TRIGGERED.format(ChatColor.GOLD).send(player);
-                player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2f);
+                // 播放保底特效
+                UpgradeEffectsPlayer.playGuarantee(player);
             }
         }
 
@@ -341,6 +377,12 @@ public class UpgradeService {
         // ========== 强化后自动绑定（新增） ==========
         applyAutoBindOnUpgradeIfNeeded(player, targetMMO);
 
+        // ========== 播放成功特效（新增） ==========
+        UpgradeEffectsPlayer.playSuccess(player, newLevel);
+
+        // ========== 记录强化日志（新增） ==========
+        logUpgradeResult(player, targetMMO, originalLevel, newLevel, true, null, consumedStones, 0, guaranteeTriggered);
+
         return UpgradeResult.success(targetMMO, originalLevel, newLevel, consumedStones, directUpBonusLevels, guaranteeTriggered);
     }
 
@@ -381,11 +423,24 @@ public class UpgradeService {
 
         PenaltyResult penalty = penaltyResult.getResult();
         if (penalty == PenaltyResult.NONE) {
+            // 播放普通失败特效
+            UpgradeEffectsPlayer.playFailure(player);
             return UpgradeResult.failureNoPenalty(consumedStones);
         }
 
         if (penalty == PenaltyResult.PROTECTED) {
+            // 保护生效，播放成功特效（表示保护成功）
+            UpgradeEffectsPlayer.playSuccess(player, originalLevel);
             return UpgradeResult.failureProtected(consumedStones, penaltyResult.getInterceptedPenalty());
+        }
+
+        // 判定惩罚类型播放特效
+        if (penalty == PenaltyResult.BREAK || penalty == PenaltyResult.DESTROY) {
+            // 播放碎裂/销毁特效
+            UpgradeEffectsPlayer.playBreak(player);
+        } else {
+            // 其他惩罚（如降级）播放普通失败特效
+            UpgradeEffectsPlayer.playFailure(player);
         }
 
         int newLevel = originalLevel;
@@ -394,6 +449,9 @@ public class UpgradeService {
             int downgradeAmount = targetData.getDowngradeAmount();
             newLevel = Math.max(targetData.getMin(), originalLevel - downgradeAmount);
         }
+
+        // ========== 记录强化日志（新增） ==========
+        logUpgradeResult(player, targetMMO, originalLevel, newLevel, false, penalty.name(), consumedStones, 0, false);
 
         return UpgradeResult.failureWithPenalty(penalty, originalLevel, newLevel, consumedStones);
     }
@@ -470,6 +528,9 @@ public class UpgradeService {
      * <p>
      * 惩罚优先级：碎裂 → 掉级 → 销毁
      * </p>
+     * <p>
+     * 惩罚来源优先级：物品配置 > 全局配置
+     * </p>
      */
     @NotNull
     public static PenaltyApplicationResult applyPenaltyDetailed(@NotNull Player player,
@@ -485,6 +546,15 @@ public class UpgradeService {
 
         // 辅料保护系数（降低惩罚触发概率）
         double protectionMultiplier = Math.max(0, 1.0 - protectionReduction);
+
+        // ========== 全局惩罚梯度检查（新增） ==========
+        // 如果物品未配置惩罚规则，则使用全局惩罚配置
+        GlobalPenaltyConfig globalPenaltyConfig = MMOItems.plugin.getUpgrades().getGlobalPenaltyConfig();
+        boolean useGlobalPenalty = globalPenaltyConfig.isEnabled() && !hasItemPenaltyConfig(targetData, originalLevel);
+
+        if (useGlobalPenalty) {
+            return applyGlobalPenalty(player, targetMMO, targetData, targetItemStack, originalLevel, protectionMultiplier, globalPenaltyConfig, itemName);
+        }
 
         // 优先级1：碎裂判定
         if (targetData.isInBreakRange(originalLevel) && targetData.getBreakChance() > 0) {
@@ -706,5 +776,191 @@ public class UpgradeService {
                     "#level#", MMOUtils.intToRoman(bindLevel)).send(player);
             player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 2f);
         }
+    }
+
+    /**
+     * 检查物品是否配置了惩罚规则
+     * <p>
+     * 如果物品配置了碎裂/掉级/销毁任一惩罚规则，返回 true
+     * </p>
+     *
+     * @param targetData    目标强化数据
+     * @param originalLevel 原始等级
+     * @return 如果物品配置了惩罚规则返回 true
+     */
+    private static boolean hasItemPenaltyConfig(@NotNull UpgradeData targetData, int originalLevel) {
+        // 检查碎裂配置
+        if (targetData.isInBreakRange(originalLevel) && targetData.getBreakChance() > 0) {
+            return true;
+        }
+        // 检查掉级配置
+        if (targetData.isInDowngradeRange(originalLevel) && targetData.getDowngradeChance() > 0) {
+            return true;
+        }
+        // 检查销毁配置
+        if (targetData.destroysOnFail()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 应用全局惩罚梯度配置
+     *
+     * @param player               玩家
+     * @param targetMMO            目标物品
+     * @param targetData           目标强化数据
+     * @param targetItemStack      目标 ItemStack
+     * @param originalLevel        原始等级
+     * @param protectionMultiplier 保护系数
+     * @param globalConfig         全局惩罚配置
+     * @param itemName             物品名称
+     * @return 惩罚应用结果
+     */
+    @NotNull
+    private static PenaltyApplicationResult applyGlobalPenalty(@NotNull Player player,
+                                                                @NotNull MMOItem targetMMO,
+                                                                @NotNull UpgradeData targetData,
+                                                                @Nullable ItemStack targetItemStack,
+                                                                int originalLevel,
+                                                                double protectionMultiplier,
+                                                                @NotNull GlobalPenaltyConfig globalConfig,
+                                                                @NotNull String itemName) {
+        // 获取当前等级对应的惩罚梯度
+        GlobalPenaltyConfig.PenaltyTier tier = globalConfig.getTierForLevel(originalLevel);
+        GlobalPenaltyConfig.PenaltyType type = tier.getType();
+
+        // 无惩罚
+        if (type == GlobalPenaltyConfig.PenaltyType.NONE) {
+            return PenaltyApplicationResult.of(PenaltyResult.NONE);
+        }
+
+        // 碎裂/销毁类型
+        if (type == GlobalPenaltyConfig.PenaltyType.BREAK || type == GlobalPenaltyConfig.PenaltyType.DESTROY) {
+            double actualChance = tier.getChance() * protectionMultiplier;
+            if (RANDOM.nextDouble() < actualChance) {
+                // 触发碎裂，检查保护
+                if (tryConsumeProtection(player, targetData.getBreakProtectKey())) {
+                    Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+                    player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+                    return PenaltyApplicationResult.protectedIntercept(PenaltyResult.BREAK);
+                }
+                // 执行碎裂
+                if (targetItemStack != null) {
+                    targetItemStack.setAmount(0);
+                }
+                Message.UPGRADE_FAIL_BREAK.format(ChatColor.RED, "#item#", itemName).send(player);
+                player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 0.5f);
+                return PenaltyApplicationResult.of(PenaltyResult.BREAK);
+            }
+            // 碎裂判定未触发，返回无惩罚
+            return PenaltyApplicationResult.of(PenaltyResult.NONE);
+        }
+
+        // 降级类型
+        if (type == GlobalPenaltyConfig.PenaltyType.DOWNGRADE) {
+            // 先判定碎裂（如果配置了 break-chance）
+            if (tier.getBreakChance() > 0) {
+                double actualBreakChance = tier.getBreakChance() * protectionMultiplier;
+                if (RANDOM.nextDouble() < actualBreakChance) {
+                    // 触发碎裂，检查保护
+                    if (tryConsumeProtection(player, targetData.getBreakProtectKey())) {
+                        Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+                        player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+                        return PenaltyApplicationResult.protectedIntercept(PenaltyResult.BREAK);
+                    }
+                    // 执行碎裂
+                    if (targetItemStack != null) {
+                        targetItemStack.setAmount(0);
+                    }
+                    Message.UPGRADE_FAIL_BREAK.format(ChatColor.RED, "#item#", itemName).send(player);
+                    player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 0.5f);
+                    return PenaltyApplicationResult.of(PenaltyResult.BREAK);
+                }
+            }
+
+            // 判定降级
+            double actualDowngradeChance = tier.getChance() * protectionMultiplier;
+            if (RANDOM.nextDouble() < actualDowngradeChance) {
+                // 触发降级，检查保护
+                if (tryConsumeProtection(player, targetData.getDowngradeProtectKey())) {
+                    Message.UPGRADE_FAIL_PROTECTED.format(ChatColor.GREEN, "#item#", itemName).send(player);
+                    player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
+                    return PenaltyApplicationResult.protectedIntercept(PenaltyResult.DOWNGRADE);
+                }
+
+                // 执行降级
+                int downgradeAmount = tier.getAmount();
+                int newLevel = Math.max(targetData.getMin(), originalLevel - downgradeAmount);
+                int actualDowngrade = originalLevel - newLevel;
+
+                if (actualDowngrade > 0) {
+                    UpgradeTemplate template = targetData.getTemplate();
+                    if (template != null) {
+                        template.upgradeTo(targetMMO, newLevel);
+                        // 如果有 ItemStack，更新它
+                        if (targetItemStack != null) {
+                            NBTItem result = targetMMO.newBuilder().buildNBT();
+                            targetItemStack.setItemMeta(result.toItem().getItemMeta());
+                        }
+                    }
+                    Message.UPGRADE_FAIL_DOWNGRADE.format(ChatColor.RED, "#item#", itemName,
+                            "#amount#", String.valueOf(actualDowngrade)).send(player);
+                    player.playSound(player.getLocation(), Sounds.ENTITY_ITEM_BREAK, 1, 1.5f);
+                    return PenaltyApplicationResult.of(PenaltyResult.DOWNGRADE);
+                }
+            }
+        }
+
+        // 默认无惩罚
+        return PenaltyApplicationResult.of(PenaltyResult.NONE);
+    }
+
+    /**
+     * 记录强化日志
+     *
+     * @param player             玩家
+     * @param targetMMO          目标物品
+     * @param originalLevel      原始等级
+     * @param newLevel           新等级
+     * @param success            是否成功
+     * @param penaltyType        惩罚类型（失败时）
+     * @param stonesUsed         使用的强化石数量
+     * @param economyCost        经济消耗
+     * @param guaranteeTriggered 是否触发保底
+     */
+    private static void logUpgradeResult(@NotNull Player player,
+                                          @NotNull MMOItem targetMMO,
+                                          int originalLevel,
+                                          int newLevel,
+                                          boolean success,
+                                          @Nullable String penaltyType,
+                                          int stonesUsed,
+                                          double economyCost,
+                                          boolean guaranteeTriggered) {
+        UpgradeLogManager logManager = MMOItems.plugin.getUpgrades().getLogManager();
+        if (logManager == null || !logManager.isEnabled()) {
+            return;
+        }
+
+        String itemName = targetMMO.hasData(ItemStats.NAME)
+                ? targetMMO.getData(ItemStats.NAME).toString()
+                : targetMMO.getType().getName();
+
+        String itemType = targetMMO.getType() != null ? targetMMO.getType().getId() : "UNKNOWN";
+        String itemId = targetMMO.getId() != null ? targetMMO.getId() : "UNKNOWN";
+
+        UpgradeLogEntry entry = new UpgradeLogEntry.Builder()
+                .player(player.getUniqueId(), player.getName())
+                .item(itemType, itemId, itemName)
+                .levels(originalLevel, newLevel)
+                .success(success)
+                .penalty(penaltyType)
+                .stonesUsed(stonesUsed)
+                .economyCost(economyCost)
+                .guaranteeTriggered(guaranteeTriggered)
+                .build();
+
+        logManager.log(entry);
     }
 }

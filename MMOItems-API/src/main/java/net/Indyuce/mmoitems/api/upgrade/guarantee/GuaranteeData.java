@@ -85,6 +85,23 @@ public class GuaranteeData {
     }
 
     /**
+     * 当超过失效时间时，重置连续失败计数
+     *
+     * @param expireHours 失效小时数（<=0 表示不过期）
+     */
+    public void applyExpiration(int expireHours) {
+        if (expireHours <= 0) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long expireMillis = expireHours * 3600_000L;
+        if (now - lastUpgradeTime >= expireMillis) {
+            resetFails();
+            lastUpgradeTime = now;
+        }
+    }
+
+    /**
      * 获取连续失败次数
      *
      * @return 连续失败次数

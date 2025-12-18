@@ -2,6 +2,7 @@ package net.Indyuce.mmoitems.api.upgrade.transfer;
 
 import io.lumine.mythic.lib.api.item.NBTItem;
 import net.Indyuce.mmoitems.ItemStats;
+import net.Indyuce.mmoitems.MMOItems;
 import net.Indyuce.mmoitems.api.Type;
 import net.Indyuce.mmoitems.api.UpgradeTemplate;
 import net.Indyuce.mmoitems.api.item.mmoitem.LiveMMOItem;
@@ -13,8 +14,11 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import org.bukkit.configuration.ConfigurationSection;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 强化等级转移服务
@@ -39,6 +43,94 @@ public class UpgradeTransferService {
     public static final double DEFAULT_TRANSFER_RATIO = 0.8;
 
     /**
+     * 转移模式枚举
+     */
+    public enum TransferMode {
+        /** 仅同类型物品可转移 */
+        STRICT,
+        /** 同类型/同父类型/父子类型可转移（默认） */
+        LOOSE,
+        /** 使用白名单配置 */
+        WHITELIST
+    }
+
+    /**
+     * 检查强化转移功能是否启用
+     *
+     * @return 如果启用返回 true
+     */
+    public static boolean isTransferEnabled() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        return config == null || config.getBoolean("enabled", true);
+    }
+
+    /**
+     * 从配置获取转移模式
+     *
+     * @return 转移模式
+     */
+    @NotNull
+    public static TransferMode getTransferMode() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        if (config == null) {
+            return TransferMode.LOOSE;
+        }
+        String modeStr = config.getString("mode", "loose").toUpperCase(Locale.ROOT);
+        try {
+            return TransferMode.valueOf(modeStr);
+        } catch (IllegalArgumentException e) {
+            return TransferMode.LOOSE;
+        }
+    }
+
+    /**
+     * 从配置获取转移比例
+     *
+     * @return 转移比例（0-1）
+     */
+    public static double getConfiguredRatio() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        if (config == null) {
+            return DEFAULT_TRANSFER_RATIO;
+        }
+        double ratio = config.getDouble("ratio", DEFAULT_TRANSFER_RATIO);
+        return Math.max(0, Math.min(1, ratio));
+    }
+
+    /**
+     * 从配置获取最大可转移等级
+     *
+     * @return 最大等级，-1 表示无限制
+     */
+    public static int getMaxTransferLevel() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        if (config == null) {
+            return -1;
+        }
+        return config.getInt("max-level", -1);
+    }
+
+    /**
+     * 检查是否为叠加模式
+     *
+     * @return 如果叠加返回 true，覆盖返回 false
+     */
+    public static boolean isStackMode() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        return config == null || config.getBoolean("stack-mode", true);
+    }
+
+    /**
+     * 检查转移后是否重置源物品等级
+     *
+     * @return 如果重置返回 true
+     */
+    public static boolean shouldResetSource() {
+        ConfigurationSection config = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer");
+        return config == null || config.getBoolean("reset-source", true);
+    }
+
+    /**
      * 执行强化等级转移
      * <p>
      * 规则：
@@ -46,7 +138,7 @@ public class UpgradeTransferService {
      *     <li>源物品与目标物品必须同类型或配置允许的兼容类型</li>
      *     <li>源物品强化等级 > 0</li>
      *     <li>目标等级 = 源等级 × 转移比例（向下取整）</li>
-     *     <li>源物品等级重置为 0</li>
+     *     <li>源物品等级重置为 0（可配置）</li>
      * </ol>
      * </p>
      *
@@ -54,7 +146,7 @@ public class UpgradeTransferService {
      * @param sourceItem   源物品
      * @param targetItem   目标物品
      * @param freeMode     是否免费模式（不消耗转移石）
-     * @param transferRatio 转移比例（0-1），传 0 使用默认值
+     * @param transferRatio 转移比例（0-1），传 0 使用配置值
      * @return 转移结果
      */
     @NotNull
@@ -63,9 +155,14 @@ public class UpgradeTransferService {
                                                   @NotNull ItemStack targetItem,
                                                   boolean freeMode,
                                                   double transferRatio) {
-        // 使用默认比例
+        // 检查功能是否启用
+        if (!isTransferEnabled()) {
+            return TransferResult.error("强化转移功能已禁用");
+        }
+
+        // 使用配置比例
         if (transferRatio <= 0) {
-            transferRatio = DEFAULT_TRANSFER_RATIO;
+            transferRatio = getConfiguredRatio();
         }
 
         // 1. 验证源物品
@@ -134,9 +231,25 @@ public class UpgradeTransferService {
         }
 
         // 7. 计算转移后的等级
-        int transferredLevel = (int) Math.floor(sourceLevel * transferRatio);
-        // 叠加到目标物品现有等级
-        int newTargetLevel = targetOriginalLevel + transferredLevel;
+        int levelToTransfer = sourceLevel;
+
+        // 检查最大可转移等级限制
+        int maxTransfer = getMaxTransferLevel();
+        if (maxTransfer > 0 && levelToTransfer > maxTransfer) {
+            levelToTransfer = maxTransfer;
+        }
+
+        int transferredLevel = (int) Math.floor(levelToTransfer * transferRatio);
+
+        // 根据叠加模式计算目标等级
+        int newTargetLevel;
+        if (isStackMode()) {
+            // 叠加模式：叠加到目标物品现有等级
+            newTargetLevel = targetOriginalLevel + transferredLevel;
+        } else {
+            // 覆盖模式：直接使用转移等级
+            newTargetLevel = transferredLevel;
+        }
 
         // 检查目标物品等级上限
         if (targetData.getMax() > 0 && newTargetLevel > targetData.getMax()) {
@@ -153,9 +266,11 @@ public class UpgradeTransferService {
             return TransferResult.error("目标物品强化模板不存在: " + targetData.getTemplateName());
         }
 
-        // 9. 执行转移：源物品重置为 0，目标物品设置为新等级
-        // 重置源物品
-        sourceTemplate.upgradeTo(sourceMMO, 0);
+        // 9. 执行转移
+        // 根据配置决定是否重置源物品等级
+        if (shouldResetSource()) {
+            sourceTemplate.upgradeTo(sourceMMO, 0);
+        }
 
         // 设置目标物品等级
         if (newTargetLevel > targetOriginalLevel) {
@@ -175,10 +290,11 @@ public class UpgradeTransferService {
     /**
      * 检查两个物品类型是否兼容（可以转移）
      * <p>
-     * 当前规则：
+     * 根据配置的转移模式判断：
      * <ul>
-     *     <li>同类型物品兼容</li>
-     *     <li>同父类型物品兼容（如 SWORD 和 LONG_SWORD 都属于武器类）</li>
+     *     <li>STRICT：仅同类型物品可转移</li>
+     *     <li>LOOSE：同类型/同父类型/父子类型可转移</li>
+     *     <li>WHITELIST：使用白名单配置判定</li>
      * </ul>
      * </p>
      *
@@ -187,6 +303,44 @@ public class UpgradeTransferService {
      * @return 是否兼容
      */
     public static boolean isTypeCompatible(@NotNull Type source, @NotNull Type target) {
+        TransferMode mode = getTransferMode();
+
+        // WHITELIST 模式：使用白名单配置
+        if (mode == TransferMode.WHITELIST) {
+            ConfigurationSection compat = MMOItems.plugin.getConfig().getConfigurationSection("item-upgrading.transfer-compatibility");
+            if (compat != null && compat.getBoolean("enabled", false)) {
+                List<String> whitelist = compat.getStringList("whitelist");
+                if (isWhitelisted(whitelist, source, target)) {
+                    return true;
+                }
+                // 白名单模式下未命中，检查是否允许回退
+                if (compat.getBoolean("allow-legacy-auto", true)) {
+                    // 回退到 LOOSE 模式
+                    return checkLooseCompatibility(source, target);
+                }
+                return false;
+            }
+            // 白名单配置不存在，回退到 LOOSE
+            return checkLooseCompatibility(source, target);
+        }
+
+        // STRICT 模式：仅同类型
+        if (mode == TransferMode.STRICT) {
+            return source.equals(target);
+        }
+
+        // LOOSE 模式（默认）：同类型/同父类型/父子类型
+        return checkLooseCompatibility(source, target);
+    }
+
+    /**
+     * LOOSE 模式兼容性检查
+     *
+     * @param source 源类型
+     * @param target 目标类型
+     * @return 是否兼容
+     */
+    private static boolean checkLooseCompatibility(@NotNull Type source, @NotNull Type target) {
         // 同类型
         if (source.equals(target)) {
             return true;
@@ -196,13 +350,10 @@ public class UpgradeTransferService {
         Type sourceParent = source.getParent();
         Type targetParent = target.getParent();
 
-        if (sourceParent != null && targetParent != null) {
-            if (sourceParent.equals(targetParent)) {
-                return true;
-            }
+        if (sourceParent != null && targetParent != null && sourceParent.equals(targetParent)) {
+            return true;
         }
-
-        // 源类型是目标的父类型，或反之
+        // 父子类型兼容
         if (sourceParent != null && sourceParent.equals(target)) {
             return true;
         }
@@ -210,6 +361,33 @@ public class UpgradeTransferService {
             return true;
         }
 
+        return false;
+    }
+
+    private static boolean isWhitelisted(@NotNull List<String> whitelist, @NotNull Type source, @NotNull Type target) {
+        if (whitelist.isEmpty()) {
+            return false;
+        }
+        String sourceId = source.getId().toUpperCase(Locale.ROOT);
+        String targetId = target.getId().toUpperCase(Locale.ROOT);
+
+        for (String entry : whitelist) {
+            if (entry == null || entry.isEmpty()) continue;
+            String normalized = entry.replace(" ", "").toUpperCase(Locale.ROOT);
+            String[] parts = normalized.split("->");
+            if (parts.length != 2) {
+                parts = normalized.split(":");
+            }
+            if (parts.length != 2) continue;
+            String left = parts[0];
+            String right = parts[1];
+
+            boolean leftMatch = left.equals("ANY") || left.equals(sourceId);
+            boolean rightMatch = right.equals("ANY") || right.equals(targetId);
+            if (leftMatch && rightMatch) {
+                return true;
+            }
+        }
         return false;
     }
 

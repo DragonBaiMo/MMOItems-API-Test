@@ -247,7 +247,12 @@ public class UpgradeCommandTreeNode extends CommandTreeNode {
                 break;
 
             case FAILURE_PROTECTED:
-                Message.UPGRADE_CMD_FAIL_PROTECTED.format(ChatColor.YELLOW).send(player);
+                String protectedMsg = result.getMessage();
+                if (protectedMsg == null || protectedMsg.isEmpty()) {
+                    Message.UPGRADE_CMD_FAIL_PROTECTED.format(ChatColor.YELLOW).send(player);
+                } else {
+                    player.sendMessage(MMOItems.plugin.getPrefix() + ChatColor.YELLOW + protectedMsg);
+                }
                 player.playSound(player.getLocation(), Sounds.ENTITY_PLAYER_LEVELUP, 1, 1.5f);
                 if (result.getConsumedStones() > 0) {
                     player.sendMessage(MMOItems.plugin.getPrefix() + ChatColor.GRAY + "消耗了 " +

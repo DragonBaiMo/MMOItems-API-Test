@@ -1,0 +1,692 @@
+# 不要触摸
+config-version: 8
+
+# 当启用时，如果可供下载的更新版本可用，将在玩家加入服务器时通知具有 'mmoitems.update-notify' 权限节点的玩家。
+# 更改后需要重新加载。
+update-notify: true
+
+# 启用/禁用插件对整个玩家库存的迭代，而不仅仅是玩家的护甲和持有的物品。
+# 这个选项对于装饰物品类型是必需的，然而它可能会导致延迟和/或占用大量内存。
+iterate-whole-inventory: false
+
+# 当设置为 true 时，皮肤只能应用到物品上一次。
+locked-skins: true
+
+# 从 6.9.3 开发版本开始，MMOItems 支持同时使用多个 RPG 核心插件。然而，MMOItems 需要一个特定的插件来挂钩等级、职业等。
+#
+# 可用的插件：
+# - MMOCORE (等级，职业，法力值，体力)
+# - HEROES (等级，职业，法力值，体力)
+# - FABLED (等级，职业，法力值)
+# - RPGPLAYERLEVELING (等级，法力值，力量)
+# - RACESANDCLASSES (等级，职业，法力值)
+# - BATTLELEVELS (等级)
+# - MCMMO (力量等级)
+# - MCRPG (力量等级)
+# - SKILLS 或 SKILLSPRO (职业，等级，法力值)
+# - AURELIUM_SKILLS (1.X 版本: 力量等级，法力值)
+# - AURA_SKILLS (2+ 版本: 力量等级，法力值)
+preferred-rpg-provider: MMOCORE
+
+# 默认情况下，所有玩家的库存每 10 刻（tick）更新一次，相当于每秒更新两次库存。
+inventory-update-delay: 10
+
+# 当生成物品时，物品等级必须大致与玩家等级相符，否则玩家无法使用物品/得到无用的物品。
+# 物品等级总是在 [playerLevel - spread, playerLevel + spread] 区间内
+item-level-spread: 2
+
+# 目前存在一个客户端的 Minecraft 问题，其中左键点击一个
+fix-left-click-interact: true
+
+# 使用 WorldGuard 时，这些标志检查有时会消耗性能。
+# 如果你正在运行 WorldGuard 但没有使用某些标志，可以在此处关闭检查以提高性能。
+#
+# 更多关于 WorldGuard 标志的信息：
+# https://gitlab.com/phoenix-dvpmt/mythiclib/-/wikis/Plugin-Compatibility#flag-plugins
+enable_flag_checks:
+    commands: true
+    weapons: true
+    consumables: true
+    tools: true
+
+# 消耗品设置
+consumables:
+
+    # 默认关闭。当设置为 true 时，右键点击消耗品时如果玩家正在看
+    # 可交互方块（箱子、工作台等）则不会消耗物品。
+    # 仅在 Spigot 1.21+ 版本可用
+    disable_clicks_on_blocks: false
+
+# 没有等级的物品将使用此等级名称作为默认等级名称。
+default-tier-name: 'Common'
+
+# 当生成一个没有等级的物品时，将使用这个容量公式。
+default-item-capacity:
+    base: 3
+    scale: 0
+    spread: 0
+    max-spread: 0
+
+# 更改一些统计数据的默认值。这主要适用于未指定目标的武器，如法杖、火枪...
+default:
+    attack-speed: 0.67 # 仅用于旧版远程武器（琵琶、火枪等）。将来会被移除
+    range: 16
+    blunt-rating: 33
+    recoil: 0.1
+
+# 更改此选项时需重启服务器
+dropped-items:
+    # 物品根据它们的等级发光
+    tier-glow: true
+
+    # 在掉落的物品上方显示物品名称
+    hints: true
+
+# 切换此选项以完全禁用物品权限功能。
+# 与物品命令一样，如果给予员工/管理员访问权限，此属性可能会导致严重的安全问题。
+# 如果你不打算使用此属性，可以考虑完全禁用它。
+enable_item_granted_permissions: true
+
+# 物品命令设置
+item_commands:
+
+  # 切换此选项以完全禁用物品命令功能。
+  # 与物品权限一样，如果给予员工/管理员访问权限，此属性可能会导致严重的安全问题。
+  # 如果你不打算使用此属性，可以考虑完全禁用它。
+  enabled: true
+
+  # 物品命令白名单的正则表达式模式列表。
+  # 为了额外安全，请仔细选择物品命令可以执行的命令子集。
+  # 任何不匹配此列表中任何模式的命令都不会被执行。
+  # 一些正则表达式模式示例：
+  # - "dm open .*" 匹配任何以 "dm open" 开头的命令
+  # - ".*hello world" 匹配任何以 "hello world" 结尾的命令
+  # - "hat" 完全匹配 "hat" 命令
+  # 设为 [] 以禁用白名单
+  whitelist: []
+
+# 一些物品统计数据如 '命令' 或 NBTags 可能被滥用变得过于强大。
+# 你可以将特定权限绑定到这些统计数据上，以限制它们的编辑。
+# 你需要一个支持 Vault 的权限插件才能使用这个选项。
+# 对应的权限是 "mmoitems.edit.op"。
+op-item-stats:
+    enabled: false
+    stats:
+        - COMMANDS
+        - CUSTOM_NBT
+        - GRANTED_PERMISSIONS
+
+# 物品升级
+item-upgrading:
+    # 升级后物品名称的后缀。
+    name-suffix: ' &8(&e+#lvl#&8)'
+    # 是否在物品名称或传说中显示
+    # 如果玩家可以重命名物品，请禁用。
+    # 如果设置为 'false'，请记得在你的物品传说中包含
+    # {upgrade_level} in your item lore.
+    display-in-name: true
+
+    # 是否在传说中显示哪些
+    # 统计数据发生了变化。
+    display-stat-changes: false
+    stat-change-suffix: ' &8(<p>#stat#&8)'
+    stat-change-positive: '&a'
+    stat-change-negative: '&c'
+
+    # ===== 保底机制配置 =====
+    # 同一物品连续强化失败达到阈值后，下次强化必定成功
+    guarantee:
+        # 是否启用保底机制
+        enabled: true
+        # 连续失败多少次后触发保底（默认30次）
+        threshold: 30
+        # 强化成功后是否重置失败计数
+        reset-on-success: true
+        # 失败计数过期时间（小时，<=0 表示不过期；例如 24 表示 24 小时内不强化则计数清零）
+        expire-hours: 0
+
+    # ===== 每日限制配置 =====
+    # 限制玩家每天的强化次数
+    daily-limit:
+        # 是否启用每日限制（默认关闭）
+        enabled: false
+        # 默认每日最大强化次数
+        default-max: 50
+        # 每日重置时间（0-23小时，0表示凌晨0点）
+        reset-hour: 0
+        # 绕过限制的权限节点
+        bypass-permission: "mmoitems.upgrade.bypass-daily"
+        # 是否将每日计数持久化到磁盘（文件：plugins/MMOItems/upgrade-daily-limit.yml）
+        persist-enabled: true
+        # 权限分档配置（优先级高的先匹配）
+        # 用于按权限配置不同玩家的每日上限
+        tiers:
+            svip:
+                permission: "mmoitems.upgrade.limit.svip"
+                max: 200
+                priority: 30
+            vip:
+                permission: "mmoitems.upgrade.limit.vip"
+                max: 100
+                priority: 20
+            # default 分档无需 permission，匹配所有玩家
+            default:
+                permission: ""
+                max: 50
+                priority: 0
+
+    # ===== 经济消耗配置 =====
+    # 强化时扣除金币/点券（需安装 DrcomoCoreLib）
+    economy-cost:
+        # 是否启用经济消耗（默认关闭）
+        enabled: false
+        # 经济类型: vault（金币）或 playerpoints（点券）
+        type: "vault"
+        # 按等级段配置费用
+        # 格式："起始等级-结束等级": 费用
+        tiers:
+            "0-5": 100
+            "6-10": 500
+            "11-15": 2000
+            "16-20": 5000
+            # 未匹配到等级段时使用此默认值
+            "default": 100
+
+    # ===== 强化后自动绑定配置 =====
+    # 强化成功后自动将物品绑定给强化者
+    auto-bind-on-upgrade:
+        # 是否启用强化后自动绑定（默认关闭）
+        enabled: false
+        # 绑定等级（1-7，等级越高解绑越难）
+        level: 1
+        # 是否显示绑定消息
+        show-message: true
+
+    # ===== 全服通报配置 =====
+    # 当玩家强化到指定等级时全服广播
+    broadcast:
+        # 是否启用全服通报（默认关闭）
+        enabled: false
+        # 触发通报的等级列表
+        levels:
+            - 12
+            - 15
+            - 20
+            - 25
+            - 30
+        # 通报消息格式
+        # 占位符: {player} = 玩家名, {item} = 物品名, {level} = 强化等级
+        message: "&6[强化通报] &a{player} 的 &e{item}&a 强化到 &c+{level}&a 级！"
+
+    # ===== 强化特效配置 =====
+    # 强化成功/失败时的视觉效果
+    effects:
+        # 是否启用特效（默认开启）
+        enabled: true
+        # 成功特效
+        success:
+            # 粒子效果（Bukkit Particle 枚举名）
+            particle: "VILLAGER_HAPPY"
+            # 粒子数量
+            particle-count: 30
+            # 音效（Bukkit Sound 枚举名或 MythicLib 音效）
+            sound: "ENTITY_PLAYER_LEVELUP"
+            # 音量
+            volume: 1.0
+            # 音调
+            pitch: 1.5
+        # 失败特效
+        failure:
+            particle: "SMOKE_NORMAL"
+            particle-count: 20
+            sound: "ENTITY_ITEM_BREAK"
+            volume: 1.0
+            pitch: 1.0
+        # 碎裂特效
+        break:
+            particle: "EXPLOSION_LARGE"
+            particle-count: 1
+            sound: "ENTITY_GENERIC_EXPLODE"
+            volume: 1.0
+            pitch: 0.5
+        # 保底触发特效
+        guarantee:
+            particle: "TOTEM"
+            particle-count: 50
+            sound: "UI_TOAST_CHALLENGE_COMPLETE"
+            volume: 1.0
+            pitch: 1.0
+        # 特效权限控制（无权限则不显示粒子，只播放音效）
+        particle-permission: ""
+        # 按等级段配置额外特效（高等级成功时更华丽）
+        level-effects:
+            # 15级以上成功时额外特效
+            "15+":
+                particle: "FIREWORKS_SPARK"
+                particle-count: 50
+            # 20级以上成功时额外特效
+            "20+":
+                particle: "END_ROD"
+                particle-count: 100
+
+    # ===== 强化日志配置 =====
+    # 记录所有强化操作的日志，支持查询和分析
+    upgrade-log:
+        # 是否启用强化日志（默认关闭）
+        enabled: false
+        # 日志保留天数（超过后自动清理）
+        retention-days: 30
+
+    # ===== 额外概率加成配置 =====
+    # 支持通过 PAPI 变量、权限节点计算额外成功率加成
+    # 需要 DrcomoCoreLib 支持公式计算
+    chance-bonus:
+        # 是否启用额外概率加成（默认关闭）
+        enabled: false
+        # 概率加成公式（支持 PAPI 变量和数学表达式）
+        # 可用变量：
+        #   %player_level% - 玩家等级（需要 PAPI + 等级插件）
+        #   %mmoitems_upgrade_level% - 当前强化等级
+        #   %vault_eco_balance% - 玩家金币余额
+        #   自定义变量...
+        # 公式结果表示额外成功率加成（百分比）
+        # 例如：结果为 10 表示 +10% 成功率加成
+        formula: "0"
+        # 权限节点加成（按优先级匹配，高优先级先匹配）
+        # 玩家拥有对应权限时获得额外加成
+        permission-bonus:
+            # SVIP玩家 +15% 成功率
+            svip:
+                permission: "mmoitems.upgrade.bonus.svip"
+                bonus: 15
+                priority: 30
+            # VIP玩家 +10% 成功率
+            vip:
+                permission: "mmoitems.upgrade.bonus.vip"
+                bonus: 10
+                priority: 20
+            # 普通玩家无额外加成
+            default:
+                permission: ""
+                bonus: 0
+                priority: 0
+        # 最大额外加成上限（防止加成过高）
+        max-bonus: 50
+
+    # ===== 全局惩罚梯度配置 =====
+    # 当物品未配置惩罚规则时，使用全局惩罚梯度
+    # 优先级：物品配置 > 全局配置
+    global-penalty:
+        # 是否启用全局惩罚梯度（默认关闭，使用物品自身配置）
+        enabled: false
+        # 按等级段配置惩罚规则
+        # 格式："起始等级-结束等级"
+        tiers:
+            # 0-5级：无惩罚
+            "0-5":
+                # 惩罚类型: none（无惩罚）、downgrade（降级）、break（碎裂）、destroy（销毁）
+                type: "none"
+            # 6-10级：10%概率降1级
+            "6-10":
+                type: "downgrade"
+                chance: 0.1
+                amount: 1
+            # 11-15级：20%概率降1级，5%概率碎裂
+            "11-15":
+                type: "downgrade"
+                chance: 0.2
+                amount: 1
+                # 碎裂概率（在降级判定后独立判定）
+                break-chance: 0.05
+            # 16-20级：30%概率降2级，10%概率碎裂
+            "16-20":
+                type: "downgrade"
+                chance: 0.3
+                amount: 2
+                break-chance: 0.1
+            # 21+级：50%概率降3级，20%概率碎裂
+            "21+":
+                type: "downgrade"
+                chance: 0.5
+                amount: 3
+                break-chance: 0.2
+            # 未匹配到等级段时的默认惩罚
+            "default":
+                type: "none"
+
+    # ===== 强化等级转移配置 =====
+    transfer:
+        # 是否启用强化转移功能
+        enabled: true
+        # 转移模式: strict（仅同类型）或 loose（同类型/同父类型/父子类型）
+        mode: "loose"
+        # 转移比例（0-1，如 0.8 表示保留 80% 等级）
+        ratio: 0.8
+        # 最大可转移等级（-1 表示无限制）
+        max-level: -1
+        # 转移是否叠加到目标物品现有等级（true）还是覆盖（false）
+        stack-mode: true
+        # 转移后源物品等级是否重置为 0（true）还是保留（false）
+        reset-source: true
+
+    # ===== 强化等级转移类型兼容矩阵 =====
+    # 仅在 transfer.mode = "whitelist" 时使用白名单判定
+    # 否则按 strict/loose 模式判定
+    transfer-compatibility:
+        enabled: false
+        allow-legacy-auto: true
+        # 格式：FROM->TO，使用类型 ID，支持 ANY 通配；示例：SWORD->LONG_SWORD, ANY->STAFF
+        whitelist: []
+
+# ===== 数据库设置（仅每日限制使用，跨服共享时启用）=====
+database:
+    daily-limit:
+        enabled: false
+        host: "127.0.0.1"
+        port: 3306
+        database: "mmoitems"
+        user: "root"
+        password: ""
+        table: "mmoitems_daily_limit"
+        pool-size: 5
+        # 追加到 JDBC URL 的参数
+        params: "useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+
+# 统计数据显示
+stats-displaying:
+    # 这将是数字统计数据的前缀，
+    # 当它们不受欢迎时改变它们的颜色。
+    color-positive: ""
+    color-negative: ""
+
+    # 当带有 RNG 的物品在制作
+    # 站显示时，这是低值和高值之间的分隔符：攻击力 +5⎓7.5
+    range-dash: "⎓"
+
+# 灵魂绑定
+soulbound:
+    # 编辑灵魂绑定伤害当玩家尝试使用
+    # 没有绑定给自己的物品。
+    damage:
+        base: 1
+        per-lvl: 1
+
+    # 灵魂绑定物品在玩家死亡时是否应该
+    # 保留。
+    keep-on-death: true
+
+    # [实验性功能]
+    # 当关闭时，玩家无法丢弃或从库存中移走灵魂绑定物品。
+    # 需要启用 `keep-on-death`。
+    # 更改后需要重启服务器。
+    can-drop: true
+
+# 当物品带有 AUTO_BIND_ON_USE 属性且未显式设置 SOULBOUND_LEVEL 时，使用该默认等级进行绑定。
+auto-bind:
+    # 自动绑定默认等级（最小为 1）。当物品未配置 SOULBOUND_LEVEL 或其值 <= 0 时生效。
+    default-level: 1
+
+# 在这里启用、禁用和自定义武器效果。
+# 武器效果取决于物品类型和类型集。
+item-ability:
+    staff:
+        enabled: true
+        cooldown: 30
+        power: 1
+    gauntlet:
+        enabled: true
+        cooldown: 60
+        power: 1
+    blunt:
+        aoe:
+            enabled: true
+            cooldown: 2
+        stun:
+            enabled: true
+            chance: 5
+            cooldown: 30
+            power: 1
+    slashing:
+        enabled: true
+        cooldown: 2
+    piercing:
+        enabled: true
+        cooldown: 4
+
+# 宝石插槽
+gem-sockets:
+    # 定义你如果需要创建一个未着色的宝石插槽，即任何类型宝石的插槽，需要在物品宝石插槽中输入的文本。
+    uncolored: "Uncolored"
+
+# 自定义方块
+custom-blocks:
+    # 是否根据它们的生成模板在世界中生成自定义方块。
+    enable-world-gen: false
+
+    # 当使用精准采集附魔挖掘蘑菇块时，是否从掉落列表中移除蘑菇块的掉落。
+    # 高度推荐在服务器使用自定义方块时使用，因为蘑菇块可以破坏一切。
+    replace-mushroom-drops: true
+
+# 如果你的聊天管理插件与 MMOItems 聊天输入特性发生冲突。这将带出一个铁砧 GUI，你可以在其中输入文本，而不是使用聊天。
+anvil-text-input: false
+
+# 当设置为 true 时，如果物品升级后将具有的规格（等级、专业要求）对玩家来说太高，玩家将无法升级物品。
+item-upgrade-requirements-check: true
+
+# 当玩家同时持有双手物品和另一个物品时，不能使用他们的武器/能力。
+# 当关闭时，玩家仍然会收到缓慢 4 的效果。
+two-handed-item-restriction: true
+
+# 你可以选择使用什么字符来创建物品能力冷却进度条
+cooldown-progress-bar-char: █
+
+# 在动作栏而不是聊天中显示消息。
+# 可用于减少聊天刷屏。
+# 可能与其他动作栏插件冲突。
+action-bar-display:
+    ability-cooldown: true
+    item-cooldown: true
+    not-enough-mana: true
+    not-enough-stamina: true
+    two-handed: true
+    cant-use-item: true
+    mitigation: true
+    item-break: false
+
+# 配方设置
+recipes:
+
+    # 为 MMOItems 配方启用原版配方书
+    use-recipe-book: true
+
+# "repair" 阻止玩家修复 MMOItems 物品。
+# "smelt" 阻止玩家熔炼 MMOItems 物品。
+# "enchant" 禁用 MMOItems 物品的附魔。
+# "craft" 阻止玩家将 MMOItems 物品用作合成材料。
+# "arrow-shooting" 阻止玩家射出任何 MMOItem 箭矢。
+disable-interactions:
+    interact: false
+    repair: false
+    enchant: false
+    smelt: false
+    smith: false
+    craft: false
+    arrow-shooting: false
+
+# 不能被技能/物品效果破坏的方块类型
+block-blacklist:
+    - OBSIDIAN
+
+# 允许/禁用使用物品/技能所需的权限。
+# 技能的通用权限节点：mmoitems.ability.ability-id
+# 例如：- mmoitems.ability.fire-meteor
+#       - mmoitems.ability.slow
+#       - mmoitems.ability.cursed-fangs
+#       等等。
+permissions:
+    abilities: false
+    items: true
+
+#
+# 当物品统计数据有数值范围的可能性时。
+# attack-damage:
+#    base: 10
+#    spread: 1
+#
+# 使用 spread、等级和随机数，我们获得一个随机数（与 spread 非常相关）：1.7
+#
+# 如果 additive-spread-formula 为 true，这会加到基础值上：
+#    结果：10 + 1.7 = 11.7 攻击伤害
+#
+# 如果 additive-spread-formula 为 false，这会乘以基础值：
+#    结果：10 * 1.7 = 17 攻击伤害
+#
+additive-spread-formula: false
+
+# 禁止在原版工作台中合成非 MMOItems 物品。
+# 如果列表为空，添加 []。
+disable-vanilla-recipes: []
+# - DIAMOND_PICKAXE
+# - IRON_BLOCK
+
+item-revision:
+
+  # 取出宝石时会保留它们最初放入物品时的属性，
+  # 禁用此选项可强制重新生成宝石。
+  regenerate-gems-when-unsocketed: false
+
+  # 保留等级的旧版选项，如果未在其他 keep- 标志旁边指定，
+  # 则此选项优先。
+  keep-tiers: true
+
+  # 如果物品被更新，且新版本不保留宝石，
+  # 这将把宝石归还给玩家，以免永久丢失。
+  drop-extra-gems: true
+
+  # 保留传说数据时，只有以此前缀开头的传说才会被保留。
+  kept-lore-prefix: '&7'
+
+  # 当物品更新到最新版本时，是否保留特定的属性。
+  keep-data:
+    # 物品名称，通常通过铁砧重命名
+    display-name: true
+    # 玩家放置在物品上的附魔
+    enchantments: true
+    # 应用到物品上的灵魂绑定
+    soulbound: true
+    # 物品上的宝石
+    gems: true
+    # 物品的升级等级
+    upgrades: true
+    # 物品的特定传说行...
+    # 警告，这会阻止传说中的属性在视觉上更新！
+    lore: false
+    # 外部插件可能放置的数据。
+    exsh: true
+    # RNG 处理的属性将重新随机
+    reroll: false
+    # 物品的修饰符 ~ 锋利、轻巧、沉重、奥术
+    modifications: true
+    # 由 MMOItems 应用的皮肤
+    skins: true
+    # 物品的等级
+    tier: true
+    # 第三方插件兼容
+    advanced-enchantments: true
+
+  # 当物品中的宝石更新到最新版本时，是否保留特定的属性。
+  keep-gem-data:
+
+    # 物品名称，通常通过铁砧重命名
+    display-name: true
+
+    # 玩家放置在物品上的附魔
+    enchantments: true
+
+    # 物品的特定传说行...
+    # 警告，这会阻止传说中的属性在视觉上更新！
+    lore: false
+
+    # RNG 处理的属性将重新随机
+    reroll: false
+
+  phat-loots:
+    display-name: false
+    enchantments: false
+    soulbound: false
+    gems: true
+    upgrades: false
+    lore: false
+    exsh: false
+    tier: true
+    skins: false
+    reroll: true
+    modifications: false
+    advanced-enchantments: false
+
+  # 这些物品在 PhatLoots 中完全不会更新，
+  # 以兼容检查精确 NBT 的任务插件
+  disable-phat-loot:
+    - MANGO
+    - STEEL_HELMET
+
+  # 在这里你可以禁用当发现更高版本 ID 时
+  # 物品应该更新的单独事件
+  disable-on:
+    pickup: false
+    craft: true # 推荐设为 'true'
+    click: false
+    join: false
+
+# offset 是在 X 和 Y 坐标上移动的距离
+# height 是 Y 速度坐标。Lootsplosion
+# 仅在 MythicMobs 怪物上触发。
+# 更改后需要重启服务器。
+lootsplosion:
+    enabled: true
+    color: true
+    offset: .2
+    height: .6
+
+# 当升级遇到宝石时，必须决定宝石的属性是否也会增加。
+gem-upgrade-default: 'NEVER'
+
+# 此选项允许你禁用使用已从配置中移除的 MMOItems 物品。
+disable-removed-items: true
+
+# 根据物品材料的默认镐力量（仅用于自定义方块）。
+# 镐力量不适用于原版方块，只适用于 MMOItems 的方块。
+# 你可以在此列表中添加/删除任意数量的材料。
+default-pickaxe-power:
+    WOODEN_PICKAXE: 5
+    STONE_PICKAXE: 10
+    GOLDEN_PICKAXE: 15
+    IRON_PICKAXE: 20
+    DIAMOND_PICKAXE: 25
+    NETHERITE_PICKAXE: 30
+    # 可以添加任意数量。
+
+# 你可以选择使用什么字符来创建物品能力冷却进度条
+
+durability:
+
+    # Armor durability is deduced as follows: for every 4 pts
+    # of damage tanked by the player, one durability point is
+    # taken off the item. There is no upper limit on the amount
+    # of durability points taken off simultaneously. While this is
+    # fine with vanilla Minecraft, when doing super fancy skills that
+    # deal tons of damage, armor pieces can be broken in one hit,
+    # causing major gameplay problems.
+    #
+    # This option sets a cap on the amount of durability lost at once.
+    # Set it to 0 to disable this option. It is disabled by default
+    # to not interfere with the default vanilla behaviour.
+    #
+    # More info on how many durability points are lost when performing
+    # specific actions on the Minecraft Wiki:
+    # https://minecraft.fandom.com/wiki/Durability
+    loss_cap: 0
+
+    # 当使用 mmodamage 等技能型伤害时，是否扣除主手物品的自定义耐久。
+    # 设为 false 可完全关闭该功能。
+    mmo_damage_loss: true
